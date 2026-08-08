@@ -26,5 +26,6 @@
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Assets\RandomFavorites.ico" />
+    <Resource Include="Assets\Artwork\YuzuChibiHello.png" />
   </ItemGroup>
 </Project>

@@ -38,6 +38,8 @@ public partial class MainWindow : Window
     private bool _suppressSelectionChanged;
     private bool _suppressOpenAsarChanged;
     private bool _closeWhenIdle;
+    private double? _heightBeforeAdvanced;
+    private double? _topBeforeAdvanced;
     private string? _inspectionWarning;
     private string? _lastAnnouncedTitle;
 
@@ -196,7 +198,7 @@ public partial class MainWindow : Window
         _primaryAction = state.PrimaryAction;
         StatusTitleText.Text = state.Title;
         StatusDetailText.Text = state.Detail;
-        PrimaryActionText.Text = state.PrimaryActionText;
+        PrimaryActionText.Text = AddAccessKey(state.PrimaryActionText);
         PrimaryActionButton.IsEnabled = state.PrimaryActionEnabled && !_isBusy;
         AutomationProperties.SetName(PrimaryActionButton, state.PrimaryActionText);
         ContextText.Text = state.ContextText;
@@ -259,13 +261,24 @@ public partial class MainWindow : Window
             _ => "Accent",
         };
 
-        StatusPanel.Background = (Brush)FindResource(background);
-        StatusPanel.BorderBrush = (Brush)FindResource(
-            tone == InstallerStatusTone.Neutral ? "BorderSubtle" : accent);
+        StatusPanel.Background = Brushes.Transparent;
+        StatusPanel.BorderBrush = Brushes.Transparent;
+        StatusRule.Background = (Brush)FindResource(accent);
         StatusIconSurface.Background = (Brush)FindResource(background);
         StatusIcon.Stroke = (Brush)FindResource(accent);
         StatusIcon.Fill = Brushes.Transparent;
     }
+
+    private static string AddAccessKey(string text) => text switch
+    {
+        "Installer" => "_Installer",
+        "Mettre à jour" => "_Mettre à jour",
+        "Appliquer les changements" => "_Appliquer les changements",
+        "Réinstaller" => "_Réinstaller",
+        "Ouvrir Discord" => "_Ouvrir Discord",
+        "Réessayer" => "_Réessayer",
+        _ => text,
+    };
 
     private void ApplyStatusIcon(InstallerStatusIcon icon)
     {
@@ -555,7 +568,60 @@ public partial class MainWindow : Window
         AutomationProperties.SetName(
             AdvancedToggle,
             expanded ? "Masquer les options avancées" : "Afficher les options avancées");
-        if (expanded) _ = Dispatcher.BeginInvoke(() => AdvancedPanel.BringIntoView());
+        if (expanded)
+        {
+            _ = Dispatcher.BeginInvoke(() =>
+            {
+                ExpandWindowForAdvancedOptions();
+                AdvancedPanel.BringIntoView();
+                RestartDiscordCheck.Focus();
+            });
+        }
+        else
+        {
+            RestoreWindowAfterAdvancedOptions();
+        }
+    }
+
+    private void ExpandWindowForAdvancedOptions()
+    {
+        if (WindowState != WindowState.Normal || _heightBeforeAdvanced is not null)
+            return;
+
+        UpdateLayout();
+        var availableGrowth = Math.Max(0, MaxHeight - Height);
+        var desiredGrowth = Math.Max(0, MainScrollViewer.ScrollableHeight);
+        var growth = Math.Min(availableGrowth, desiredGrowth);
+        if (growth < 1) return;
+
+        _heightBeforeAdvanced = Height;
+        _topBeforeAdvanced = Top;
+        Height += growth;
+
+        var workArea = SystemParameters.WorkArea;
+        Top = Math.Max(workArea.Top + 12, Top - growth / 2);
+        UpdateLayout();
+    }
+
+    private void RestoreWindowAfterAdvancedOptions()
+    {
+        if (WindowState != WindowState.Normal)
+            return;
+        if (_heightBeforeAdvanced is not { } previousHeight)
+            return;
+
+        Height = Math.Min(previousHeight, MaxHeight);
+        if (_topBeforeAdvanced is { } previousTop)
+        {
+            var workArea = SystemParameters.WorkArea;
+            Top = Math.Clamp(
+                previousTop,
+                workArea.Top + 12,
+                Math.Max(workArea.Top + 12, workArea.Bottom - Height - 12));
+        }
+
+        _heightBeforeAdvanced = null;
+        _topBeforeAdvanced = null;
     }
 
     private void MoreButton_OnClick(object sender, RoutedEventArgs e)
@@ -638,6 +704,40 @@ public partial class MainWindow : Window
 
     private void MinimizeButton_OnClick(object sender, RoutedEventArgs e) =>
         WindowState = WindowState.Minimized;
+
+    private void MaximizeButton_OnClick(object sender, RoutedEventArgs e) =>
+        WindowState = WindowState == WindowState.Maximized
+            ? WindowState.Normal
+            : WindowState.Maximized;
+
+    private void MainWindow_OnStateChanged(object? sender, EventArgs e)
+    {
+        var maximized = WindowState == WindowState.Maximized;
+        RootBorder.CornerRadius = new CornerRadius(maximized ? 0 : 12);
+        MaximizeIcon.Data = (Geometry)FindResource(
+            maximized ? "RestoreGeometry" : "MaximizeGeometry");
+        MaximizeButton.ToolTip = maximized ? "Restaurer" : "Agrandir";
+        AutomationProperties.SetName(
+            MaximizeButton,
+            maximized ? "Restaurer" : "Agrandir");
+
+        if (!maximized)
+        {
+            _ = Dispatcher.BeginInvoke(() =>
+            {
+                if (AdvancedToggle.IsChecked == true)
+                    ExpandWindowForAdvancedOptions();
+                else
+                    RestoreWindowAfterAdvancedOptions();
+            });
+        }
+    }
+
+    private void MainWindow_OnActivated(object? sender, EventArgs e) =>
+        TitleBarContent.Opacity = 1;
+
+    private void MainWindow_OnDeactivated(object? sender, EventArgs e) =>
+        TitleBarContent.Opacity = 0.68;
 
     private void CloseButton_OnClick(object sender, RoutedEventArgs e)
     {

@@ -16,4 +16,6 @@ from its official GitHub nightly release and verifies GitHub's published SHA-256
 OpenAsar is licensed under the GNU Affero General Public License version 3 and is not bundled into the
 YuzuCord installer executable.
 
-The Yuzuctus character artwork used by the installer is provided by Yuzuctus and illustrated by Joa.
+The Yuzuctus character artwork used by the installer is provided by Yuzuctus and illustrated by
+KouriHase. The artwork remains the property of its respective creator and commissioner and is not
+covered by the software license.

@@ -11,7 +11,7 @@ public partial class ConfirmationDialog : Window
         Title = title;
         TitleText.Text = title;
         MessageText.Text = message;
-        ConfirmButton.Content = confirmText;
+        ConfirmButton.Content = $"_{confirmText}";
         ContentRendered += (_, _) => CancelButton.Focus();
     }
 
