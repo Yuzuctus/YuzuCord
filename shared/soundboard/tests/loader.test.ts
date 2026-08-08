@@ -11,7 +11,7 @@ import {
     createSharedSoundboardLoader,
     shouldLoadChatSoundboardForKind,
     shouldLoadChatSoundboardForKinds,
-} from "./soundboardChatLoader";
+} from "../src/loader";
 
 test("only chat actions that can draw a soundboard trigger the initial load", () => {
     assert.equal(shouldLoadChatSoundboardForKind("soundboard", false), true);

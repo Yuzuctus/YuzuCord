@@ -47,6 +47,10 @@ jobs:
           corepack enable
           corepack install
 
+      - name: Test the modular plugin catalog
+        shell: pwsh
+        run: ./distribution/scripts/Test-PluginCatalog.ps1
+
       - name: Materialize catalog plugins
         shell: pwsh
         run: >-

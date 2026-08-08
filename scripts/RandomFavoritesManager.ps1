@@ -1468,9 +1468,16 @@ function Write-State {
         [string]$DiscordBranch
     )
 
-    $catalogPath = Join-Path $DistributionDirectory "catalog\plugins.json"
-    $catalog = Get-Content -LiteralPath $catalogPath -Raw | ConvertFrom-Json
-    $pluginIds = @($catalog.plugins | ForEach-Object { [string]$_.id })
+    $resolvedManifestPath = Join-Path $VencordDirectory "src\userplugins\.yuzuctus\resolved-plugins.json"
+    if (-not (Test-Path -LiteralPath $resolvedManifestPath -PathType Leaf)) {
+        throw "The resolved plugin manifest was not found at '$resolvedManifestPath'."
+    }
+    $resolvedPlugins = Get-Content -LiteralPath $resolvedManifestPath -Raw | ConvertFrom-Json
+    if ([int]$resolvedPlugins.schemaVersion -ne 1 `
+        -or [string]$resolvedPlugins.pluginsDigest -notmatch '^[0-9a-fA-F]{64}$') {
+        throw "The resolved plugin manifest is invalid."
+    }
+    $pluginIds = @($resolvedPlugins.plugins | ForEach-Object { [string]$_.id })
     $state = [ordered]@{
         productId = "YuzuctusVencord"
         lastSuccessfulRun = [DateTime]::UtcNow.ToString("o")
@@ -1479,8 +1486,8 @@ function Write-State {
         distributionDirectory = $DistributionDirectory
         pluginIds = $pluginIds
         vencordCommit = Invoke-ExternalCapture $script:GitExecutable @("-C", $VencordDirectory, "rev-parse", "HEAD")
-        distributionCommit = Invoke-ExternalCapture $script:GitExecutable @("-C", $DistributionDirectory, "rev-parse", "HEAD")
-        pluginsDigest = (Get-FileHash -LiteralPath $catalogPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        distributionCommit = [string]$resolvedPlugins.distributionCommit
+        pluginsDigest = ([string]$resolvedPlugins.pluginsDigest).ToLowerInvariant()
     }
 
     $statePath = Join-Path $RootDirectory "manager-state.json"

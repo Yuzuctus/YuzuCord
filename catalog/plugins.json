@@ -1,21 +1,78 @@
 {
-  "schemaVersion": 1,
+  "$schema": "./plugins.schema.json",
+  "schemaVersion": 2,
   "plugins": [
     {
       "id": "randomFavorites",
       "displayName": "RandomFavorites",
-      "repository": "https://github.com/Yuzuctus/RandomFavorites.git",
-      "sourcePath": ".",
-      "entrypoint": "index.tsx",
-      "files": [
-        "index.tsx",
-        "Plugin RandomFavorites"
+      "source": {
+        "type": "local",
+        "path": ".",
+        "repository": "https://github.com/Yuzuctus/RandomFavorites.git"
+      },
+      "mappings": [
+        {
+          "from": "plugins/randomFavorites",
+          "to": "."
+        },
+        {
+          "from": "shared/soundboard/src",
+          "to": "_shared/soundboard/src"
+        },
+        {
+          "from": "shared/soundboard/tests",
+          "to": "_shared/soundboard/tests"
+        },
+        {
+          "from": "LICENSE",
+          "to": "LICENSE"
+        }
       ],
+      "entrypoint": "index.tsx",
       "settingsKey": "RandomFavorites",
+      "distributionTags": [
+        "YuzuMod"
+      ],
+      "dependencies": [],
+      "conflicts": [],
       "license": "GPL-3.0-or-later",
       "licenseFile": "LICENSE",
       "maintainer": "Yuzuctus",
       "status": "maintained"
+    },
+    {
+      "id": "soundboardChat",
+      "displayName": "SoundboardChat",
+      "source": {
+        "type": "local",
+        "path": ".",
+        "repository": "https://github.com/Yuzuctus/RandomFavorites.git"
+      },
+      "mappings": [
+        {
+          "from": "plugins/soundboardChat",
+          "to": "."
+        },
+        {
+          "from": "shared/soundboard/src",
+          "to": "_shared/soundboard/src"
+        },
+        {
+          "from": "LICENSE",
+          "to": "LICENSE"
+        }
+      ],
+      "entrypoint": "index.tsx",
+      "settingsKey": "SoundboardChat",
+      "distributionTags": [
+        "YuzuMod"
+      ],
+      "dependencies": [],
+      "conflicts": [],
+      "license": "GPL-3.0-or-later",
+      "licenseFile": "LICENSE",
+      "maintainer": "Yuzuctus",
+      "status": "experimental"
     }
   ]
 }

@@ -1,311 +1,216 @@
-# V2 Handoff - Yuzuctus Vencord
+# Passation V2 — Yuzuctus Vencord
 
-Ce document est la reference de reprise pour une autre IA ou un autre developpeur. Il decrit l'etat du depot
-apres la migration de l'ancien projet RandomFavorites vers une distribution Vencord modulaire.
+Ce dépôt n’est plus un simple installateur de RandomFavorites. C’est une distribution Windows de Vencord
+construite à partir du Vencord officiel courant et d’un catalogue de plugins Yuzuctus.
 
-## Objectif du projet
+La distribution reste beta-only. `main` est la branche par défaut et `beta-v2` la branche de préparation des
+betas. Le dépôt GitHub conserve pour le moment son nom historique `Yuzuctus/RandomFavorites`.
 
-Le projet ne doit plus etre presente comme un simple installateur de RandomFavorites. Le produit est maintenant
-**Yuzuctus Vencord** : une distribution Windows de Vencord construite par Yuzuctus.
+Les branches de travail suivent `feature/<nom>` ou `fix/<nom>`. Ne pas créer de branche préfixée par le nom
+d’un outil ou d’un assistant.
 
-Objectifs definis :
+## Objectif produit
 
-- fournir un installateur Windows pour une build Vencord personnalisee ;
-- integrer plusieurs plugins Vencord dans une meme build ;
-- permettre plus tard d'ajouter des plugins crees par Yuzuctus ou par d'autres utilisateurs ;
-- garder RandomFavorites comme plugin actuel, sans ajouter de nouveau plugin pour le moment ;
-- publier uniquement en beta pendant la phase V2 ;
-- conserver une architecture qui ne necessite pas de reecrire l'installateur lorsqu'un plugin est ajoute.
+- construire un Vencord Yuzuctus reproductible sans maintenir un fork complet de Vencord ;
+- ajouter ou retirer des plugins sans réécrire l’installateur ;
+- accepter des plugins développés dans ce dépôt et des plugins publics existants ;
+- tester systématiquement le catalogue contre la dernière version officielle de Vencord ;
+- distribuer un EXE autonome : Git, Node.js et pnpm ne sont pas requis chez l’utilisateur ;
+- préserver les plugins Vencord non gérés et les réglages que l’utilisateur choisit de conserver.
 
-## Etat Git actuel
+## Plugins intégrés
 
-Depot distant : `https://github.com/Yuzuctus/RandomFavorites.git`
+### RandomFavorites
 
-Etat actuel :
+`plugins/randomFavorites/` contient le tirage aléatoire de GIF, emotes, stickers et sons de Soundboard, les
+commandes, le bouton de chat, l’aperçu sécurisé, la répartition des types, l’anti-répétition adaptatif et le
+serveur virtuel FavoriteRandom du sélecteur Soundboard vocal.
 
-- branche locale active : `main` ;
-- branche par defaut GitHub : `main` ;
-- branche beta : `beta-v2` ;
-- `main` et `beta-v2` pointent sur le commit `a83c0f4` ;
-- tag beta : `v2-beta1` ;
-- le tag `v2-beta1` pointe sur le commit de release `a6780aa` ;
-- release GitHub beta : `https://github.com/Yuzuctus/RandomFavorites/releases/tag/v2-beta1` ;
-- workflow beta reussi : `https://github.com/Yuzuctus/RandomFavorites/actions/runs/31273699913` ;
-- les autres branches locales et distantes ont ete supprimees ;
-- les anciens tags historiques sont conserves ;
-- le depot de travail etait propre apres la publication.
+### SoundboardChat
 
-Le tag `v2-beta1` a publie ces artefacts :
+`plugins/soundboardChat/` est un plugin indépendant. Il expose l’onglet Soundboard natif comme quatrième onglet
+du sélecteur GIF/emote/sticker et transforme la sélection explicite d’un son en fichier audio envoyé dans le
+salon texte. Il ne demande ni vocal, ni `SPEAK`, ni `USE_SOUNDBOARD`.
 
-- `YuzuctusVencordSetup.exe` ;
-- `YuzuctusVencordSetup.exe.sha256` ;
-- `YuzuctusVencordBundle.zip` ;
-- `YuzuctusVencordBundle.zip.sha256` ;
-- `YuzuctusVencordBundle.manifest.json`.
+Le plugin réutilise le composant Discord natif : recherche, favoris, catégories de serveurs, lecture d’aperçu,
+clavier, accessibilité et CSS restent gérés par Discord. Son patch cible le callback stable
+`"soundboard_picker"` et les propriétés `SOUNDBOARD`; un test reproduit la forme minifiée Discord courante.
 
-## Point important sur Vencord
+RandomFavorites détecte l’ouverture de l’onglet Soundboard d’expression et n’y injecte pas sa catégorie vocale
+FavoriteRandom. Les deux fonctions restent donc indépendantes.
 
-V2 n'est pas encore un fork GitHub `Yuzuctus/Vencord`. Le pipeline recupere actuellement le Vencord officiel depuis
-`Vendicated/Vencord`, puis y materialise les plugins du catalogue avant compilation.
+## Catalogue modulaire
 
-Il faut donc parler techniquement d'une **distribution Yuzuctus Vencord** et non d'un fork Yuzuctus Vencord tant
-qu'un depot fork separe n'est pas cree.
+`catalog/plugins.json` utilise `schemaVersion: 2`. `catalog/plugins.schema.json` documente sa forme.
 
-Le manifeste de chaque build enregistre le depot Vencord et son commit exact.
+Chaque entrée contient :
 
-## Architecture modulaire
+- une identité stable, un nom, une clé de réglages, un mainteneur et un statut ;
+- une source `local` ou `git` ;
+- des `mappings` source → destination ;
+- un point d’entrée et un fichier de licence ;
+- des `distributionTags`, actuellement `YuzuMod`, injectés automatiquement dans le registre et les métadonnées
+  du plugin ;
+- des dépendances et conflits explicites.
 
-### Catalogue
+Une source Git externe doit utiliser un dépôt GitHub public en HTTPS, un commit complet, une empreinte SHA-256
+des fichiers matérialisés et les métadonnées de revue. `scripts/Get-PluginIntegrity.ps1` calcule cette empreinte
+après checkout sécurisé. Les hooks, sous-modules, symlinks, jonctions et pointeurs Git LFS sont refusés.
 
-Le fichier `catalog/plugins.json` est la source de verite des plugins inclus dans une release.
+Les dépendances sont triées topologiquement. Une dépendance absente, un conflit présent ou un cycle arrête le
+build avant toute mutation de Vencord.
 
-Le schema actuel est `schemaVersion: 1`. Chaque entree contient :
+## Matérialisation
 
-- `id` : identifiant du dossier Vencord, par exemple `randomFavorites` ;
-- `displayName` : nom affiche ;
-- `repository` : depot source declare ;
-- `sourcePath` : dossier source local relatif a la racine de la distribution ;
-- `entrypoint` : fichier d'entree, actuellement `index.tsx` ;
-- `files` : fichiers et dossiers a copier ;
-- `settingsKey` : cle de reglages Vencord ;
-- `license` et `licenseFile` ;
-- `maintainer` et `status`.
+`scripts/PluginCatalog.psm1` contient le moteur commun. `scripts/Materialize-Plugins.ps1` n’est qu’un point
+d’entrée CLI.
 
-Le catalogue actuel contient une seule entree : `randomFavorites`.
+Le moteur :
 
-Son implementation se trouve dans :
+1. valide tout le catalogue et ses chemins ;
+2. récupère les sources Git immuables sans exécuter leurs hooks ;
+3. applique les mappings dans une zone temporaire par plugin ;
+4. vérifie le point d’entrée, la licence et l’intégrité ;
+5. génère un wrapper stable qui conserve le point d’entrée original et applique les tags de distribution ;
+6. calcule une empreinte déterministe par plugin et une empreinte globale ;
+7. verrouille les lancements concurrents ;
+8. sauvegarde les plugins précédemment gérés, déploie tous les nouveaux et restaure les sauvegardes si une
+   étape échoue ;
+9. ne supprime jamais un userplugin absent de l’ancien manifeste Yuzuctus ;
+10. écrit `src/userplugins/.yuzuctus/resolved-plugins.json`.
 
-- `index.tsx` a la racine, qui sert d'entrypoint de compatibilite ;
-- `Plugin RandomFavorites/index.tsx`, integration Vencord principale ;
-- `Plugin RandomFavorites/messageFormatting.ts` et ses tests ;
-- `Plugin RandomFavorites/shuffleBag.ts` et ses tests ;
-- `Plugin RandomFavorites/uniformRandom.ts` et ses tests.
+Le manifeste résolu est la preuve utilisée par le build et le manager. Le hash du JSON de catalogue brut n’est
+plus utilisé comme identité de payload.
 
-Le dossier avec espace `Plugin RandomFavorites` est volontairement conserve pour cette migration. Il ne faut pas
-le renommer sans mettre a jour `catalog/plugins.json` et le code d'export de `index.tsx`.
+## Bibliothèques partagées
 
-### Materialisation
+`shared/soundboard/` centralise le chargement et l’envoi audio Soundboard. Ses sources sont injectées dans les
+plugins consommateurs sous `_shared/soundboard/` par les mappings du catalogue.
 
-Le script `scripts/Materialize-Plugins.ps1` lit le catalogue et copie chaque entree dans un dossier direct de
-Vencord :
+Cette stratégie évite une dépendance runtime entre userplugins et garde chaque dossier matérialisé autonome.
+Les sources restent maintenues une seule fois dans ce dépôt.
 
-```text
-vencord/src/userplugins/<pluginId>
+## Build et manifeste de release
+
+`scripts/Build-ReleaseBundle.ps1` :
+
+- exige par défaut des checkouts Git propres ;
+- rematérialise le catalogue avant de construire le bundle ;
+- utilise directement le résultat résolu ;
+- copie les licences réellement matérialisées ;
+- récupère et vérifie l’installateur Vencord officiel et OpenAsar ;
+- émet un manifeste bundle `schemaVersion: 3`.
+
+Le schéma 3 ajoute `catalogSchemaVersion`, `sourceType`, `sourceDigest`, `dependencies` et `conflicts` pour chaque
+plugin. L’installateur continue de lire les anciens schémas 1 et 2.
+
+## Installateur et manager
+
+Le produit visible est Yuzuctus Vencord, même si certains namespaces C# et le nom
+`RandomFavoritesManager.ps1` restent historiques pour préserver la compatibilité.
+
+L’installateur WPF :
+
+- télécharge le dernier bundle beta et le vérifie ;
+- compare les installations par `pluginsDigest` et commit Vencord ;
+- affiche les plugins inclus ;
+- installe, met à jour, répare ou désinstalle ;
+- peut supprimer uniquement les réglages dont les `settingsKey` figurent dans le manifeste ;
+- gère OpenAsar indépendamment ;
+- migre les anciennes installations RandomFavorites.
+
+Le manager source (`scripts/RandomFavoritesManager.ps1`) clone ou met à jour le dépôt de distribution et le
+Vencord officiel, matérialise le catalogue, installe les dépendances exactes, compile puis injecte. Son état est
+désormais alimenté par `resolved-plugins.json`.
+
+## CI et releases
+
+`.github/workflows/ci.yml` s’exécute sur `main`, `beta-v2`, les pull requests et chaque semaine. Il :
+
+- teste le moteur du catalogue, y compris source externe, verrou et rollback ;
+- matérialise les plugins dans le dernier Vencord ;
+- exécute les tests TypeScript, ESLint, `testTsc` et le build ;
+- valide les scripts avec Windows PowerShell ;
+- compile et teste l’installateur.
+
+`.github/workflows/beta-release.yml` est déclenché uniquement par les tags beta acceptés. Il refait les mêmes
+contrôles, construit le bundle et l’EXE autonome, puis publie une GitHub pre-release.
+
+## Ajouter un plugin local
+
+1. créer `plugins/<id>/index.tsx` et ses tests ;
+2. placer les fonctions réutilisables dans `shared/<domaine>/` ;
+3. ajouter l’entrée locale et ses mappings au catalogue ;
+4. déclarer les dépendances, conflits, licence et `settingsKey` ;
+5. exécuter les tests du catalogue puis la matrice Vencord complète.
+
+Les détails et exemples JSON sont dans `catalog/README.md`.
+
+## Ajouter un plugin externe
+
+1. vérifier sa licence et sa compatibilité Vencord ;
+2. relire le code complet au commit choisi, notamment les requêtes réseau et l’accès aux données Discord ;
+3. ajouter une source Git figée avec les métadonnées de revue ;
+4. limiter les mappings aux fichiers nécessaires ;
+5. calculer l’intégrité avec `scripts/Get-PluginIntegrity.ps1` ;
+6. exécuter tous les tests et faire une validation manuelle en VM.
+
+L’empreinte n’est pas une sandbox. Un plugin Vencord s’exécute dans le processus Discord.
+
+## Commandes de validation
+
+Depuis ce dépôt :
+
+```powershell
+.\scripts\Test-PluginCatalog.ps1
 ```
 
-Pour RandomFavorites, le resultat attendu est :
+Après matérialisation dans un Vencord courant :
 
 ```text
-vencord/src/userplugins/randomFavorites/index.tsx
-vencord/src/userplugins/randomFavorites/Plugin RandomFavorites/...
+pnpm exec tsx --test "src/userplugins/**/*.test.ts"
+pnpm eslint src/userplugins
+pnpm testTsc
+pnpm build
 ```
 
-Le script :
-
-- valide les IDs et les chemins relatifs ;
-- refuse les doublons ;
-- refuse les chemins qui sortent de la racine source ;
-- supprime le dossier cible du plugin avant materialisation ;
-- verifie l'entrypoint final ;
-- ne charge aucun code distant.
-
-Le script supporte actuellement des sources presentes dans `SourceRoot`. Le champ `repository` est deja present
-pour preparer la modularite, mais le clonage automatique de depots de plugins externes n'est pas encore implemente.
-
-### Build et manifeste
-
-Le script `scripts/Build-ReleaseBundle.ps1` est maintenant generique pour la distribution. Il :
-
-- lit et valide le catalogue ;
-- calcule le commit Git de la distribution ;
-- recupere le commit et le depot du checkout Vencord ;
-- calcule `pluginsDigest` sur la liste resolue des plugins ;
-- copie le catalogue dans le bundle ;
-- construit un manifeste schema 2 ;
-- verifie OpenAsar par le digest SHA-256 publie ;
-- verifie le Vencord Installer CLI par son checksum ;
-- produit les bundles `YuzuctusVencord*`.
-
-Le manifeste schema 2 contient notamment :
-
-- `productId: YuzuctusVencord` ;
-- `productName: Yuzuctus Vencord` ;
-- `version` ;
-- `vencordRepository` et `vencordCommit` ;
-- `distributionCommit` ;
-- `pluginsDigest` ;
-- `plugins[]` avec les metadonnees de chaque plugin ;
-- les informations OpenAsar ;
-- les fichiers obligatoires du bundle.
-
-Le champ legacy `pluginCommit` est encore emis pour faciliter la lecture des anciennes versions.
-`BundleManifestValidator` accepte les manifests schema 1 et schema 2.
-
-## Installateur Windows
-
-Le projet WPF se trouve encore dans les dossiers internes `installer/RandomFavorites.Setup*`, mais son identite
-utilisateur est Yuzuctus Vencord.
-
-Changements principaux :
-
-- titre, textes, dialogues et accessibilite rebrandes ;
-- assembly publie sous `YuzuctusVencordSetup.exe` ;
-- stockage principal dans `%LOCALAPPDATA%\\YuzuctusVencord` ;
-- migration de l'ancien `%LOCALAPPDATA%\\RandomFavorites` ;
-- affichage de la liste des plugins inclus au lieu d'un champ mono-plugin ;
-- comparaison des builds par `pluginsDigest` ;
-- suppression generique des reglages des plugins geres ;
-- mode de desinstallation `ManagedPluginsOnly` au lieu de `RandomFavoritesOnly` ;
-- conservation des reglages non geres ;
-- sauvegarde des reglages avant suppression.
-
-L'ancien fichier `Installer RandomFavorites.cmd` est conserve comme lanceur legacy. Le lanceur recommande est :
+Pour l’installateur :
 
 ```text
-Installer Yuzuctus Vencord.cmd
+dotnet build installer/RandomFavorites.Setup/RandomFavorites.Setup.csproj -c Release
+dotnet run --project installer/RandomFavorites.Setup.SmokeTests/RandomFavorites.Setup.SmokeTests.csproj -c Release
 ```
 
-Le nom interne `scripts/RandomFavoritesManager.ps1` est aussi conserve pour compatibilite. Le manager utilise
-desormais un dossier de distribution complet, puis appelle `Materialize-Plugins.ps1`.
+## Vérification de cette migration
 
-## Manager PowerShell
+La migration modulaire et SoundboardChat ont été contrôlés avec :
 
-`scripts/RandomFavoritesManager.ps1` orchestre :
+- validation JSON Schema du catalogue ;
+- tests d’intégration PowerShell du catalogue, de la source Git, de l’intégrité, du verrou et du rollback ;
+- parser Windows PowerShell 5.1 sur tous les scripts ;
+- 53 tests TypeScript réussis ;
+- ESLint sans erreur ;
+- `testTsc` sans erreur ;
+- build de production du Vencord officiel courant réussi ;
+- correspondance des deux patchs SoundboardChat dans le bundle Discord courant observé ;
+- build .NET sans avertissement et 22/22 smoke tests installateur réussis ;
+- smoke test complet du manager avec les deux IDs résolus et `-SkipInject`, sans modification de Discord.
 
-- les prerequis ;
-- le checkout Vencord ;
-- le checkout de la distribution ;
-- la lecture du catalogue ;
-- la materialisation des plugins ;
-- le build Vencord ;
-- l'injection Discord optionnelle ;
-- les logs et l'etat local.
+## Garde-fous à conserver
 
-Le dossier par defaut est `%LOCALAPPDATA%\\YuzuctusVencord`.
+- ne jamais lire, journaliser, stocker ou transmettre un token Discord ;
+- ne pas ajouter de télémétrie ou de service tiers dans les plugins ;
+- ne pas modifier les listes natives de favoris ;
+- ne rien envoyer sans clic ou commande explicite ;
+- ne jamais contourner les permissions de salon ;
+- ne pas publier une compatibilité sans compiler contre un Vencord officiel courant ;
+- ne pas intégrer une source externe sans licence, commit immuable, empreinte et revue.
 
-Le parametre public `PluginRepository` est conserve comme alias de `DistributionRepository` pour les anciens appels.
-Le manager genere maintenant `Update Yuzuctus Vencord.cmd` et un script gere dans le dossier `manager`.
+## Limites connues
 
-## CI et publications
-
-### `ci.yml`
-
-La CI :
-
-- checkout la distribution dans `distribution` ;
-- checkout le Vencord officiel dans `vencord` ;
-- materialise le catalogue ;
-- installe les dependances pnpm ;
-- execute les tests TypeScript des plugins ;
-- execute ESLint sur `src/userplugins` ;
-- execute `pnpm testTsc` ;
-- construit Vencord ;
-- compile et publie l'installateur Windows.
-
-### `beta-release.yml`
-
-Le workflow beta est le seul workflow de release. Il est declenche par :
-
-- `v2-beta1` et autres tags `vN-betaN` ;
-- les tags SemVer beta comme `v2.0.0-beta.1`.
-
-Il execute les tests, compile Vencord, construit le bundle, publie l'EXE et cree une GitHub prerelease.
-
-Les anciens workflows `release.yml` et `refresh-vencord.yml` ont ete supprimes pour eviter toute publication stable
-ou mise a jour automatique d'une release stable.
-
-## Verification effectuee
-
-Les verifications suivantes ont ete executees sur cette V2 :
-
-- build .NET de l'installateur : reussi ;
-- publication self-contained win-x64 : reussie ;
-- executable genere : `YuzuctusVencordSetup.exe` ;
-- tests smoke de l'installateur : `22/22` ;
-- parser PowerShell pour `Build-ReleaseBundle.ps1` : reussi ;
-- parser PowerShell pour `Materialize-Plugins.ps1` : reussi ;
-- parser PowerShell pour `RandomFavoritesManager.ps1` : reussi ;
-- test fixture du materialiseur : reussi ;
-- validation du format de tag `v2-beta1` : reussie ;
-- workflow GitHub beta `v2-beta1` : reussi.
-
-Les tests TypeScript complets et le build Vencord local ne sont pas executes dans ce depot seul, car les dependances
-Vencord ne sont pas installees localement. Ils sont executes par GitHub Actions dans un checkout Vencord frais.
-
-## Continuer le developpement
-
-### Ajouter un plugin cree dans ce depot
-
-1. Creer un dossier source propre pour le plugin.
-2. Ajouter son entrypoint et ses tests.
-3. Ajouter une entree dans `catalog/plugins.json`.
-4. Declarer `id`, `entrypoint`, `files`, `settingsKey`, `license` et `licenseFile`.
-5. Verifier que l'ID est unique et compatible avec un dossier `src/userplugins/<id>`.
-6. Lancer la materialisation dans un checkout Vencord.
-7. Lancer tests, ESLint, typecheck et build.
-8. Verifier le manifeste et le digest du catalogue.
-
-### Ajouter un plugin externe ou communautaire
-
-Ce cas est prepare mais pas encore livre. Il faudra d'abord implementer :
-
-- un resolver de depots externes ;
-- un commit obligatoire et immuable ;
-- une verification du contenu et du hash source ;
-- la gestion des licences et notices ;
-- les dependances et conflits entre plugins ;
-- un niveau de confiance explicite ;
-- une execution CI avant inclusion dans une beta.
-
-Ne pas faire croire qu'un plugin tiers est sandboxe. Un plugin Vencord s'execute dans le processus Discord et doit
-etre traite comme du code privilegie.
-
-### Publier une nouvelle beta
-
-1. Travailler sur `beta-v2` ou une branche temporaire locale.
-2. Modifier le catalogue ou le code necessaire.
-3. Executer les verifications locales.
-4. Fusionner ou fast-forwarder `main` selon la strategie choisie.
-5. Creer un tag beta, par exemple `v2-beta2`.
-6. Pousser le tag pour declencher uniquement `beta-release.yml`.
-7. Verifier la prerelease et ses cinq artefacts.
-
-Le projet ne doit pas reintroduire de workflow de release stable tant que la beta n'est pas validee.
-
-## Limites actuelles
-
-- RandomFavorites est le seul plugin integre ;
-- Vencord reste recupere depuis `Vendicated/Vencord` ;
-- le catalogue ne clone pas encore de depots externes ;
-- l'installateur inclut tous les plugins du catalogue et leur activation se fait dans les reglages Vencord ;
-- les namespaces et noms de projets C# internes gardent `RandomFavorites.Setup` ;
-- le depot GitHub s'appelle encore `Yuzuctus/RandomFavorites` ;
-- l'icone de l'installateur utilise encore le chemin interne `Assets/RandomFavorites.ico` ;
-- l'EXE n'est pas signe ;
-- les dependances Node/Vencord ne sont pas vendues dans le depot de distribution.
-
-## Regles de securite a conserver
-
-- ne jamais lire, loguer, stocker ou transmettre de token Discord ;
-- ne jamais ajouter de telemetrie, analytics ou publicite ;
-- ne jamais envoyer de contenu sans action explicite ;
-- ne pas modifier les listes natives de favoris Discord ;
-- ne pas contourner les permissions d'envoi ;
-- ne pas integrer un plugin tiers sans licence, commit et revue ;
-- ne pas revendiquer une compatibilite Vencord sans compilation contre un checkout actuel.
-
-## Reprise rapide pour une autre IA
-
-Commencer par lire, dans cet ordre :
-
-1. `V2_HANDOFF.md` ;
-2. `AGENTS.md` ;
-3. `catalog/plugins.json` ;
-4. `scripts/Materialize-Plugins.ps1` ;
-5. `scripts/Build-ReleaseBundle.ps1` ;
-6. `.github/workflows/beta-release.yml` ;
-7. `installer/RandomFavorites.Setup.Core/Models/InstallerModels.cs` ;
-8. `installer/RandomFavorites.Setup.Core/Services/InstallerService.cs`.
-
-Ne pas repartir de l'ancien objectif « installer RandomFavorites ». Le bon perimetre est : **maintenir une
-distribution Yuzuctus Vencord beta, modulaire, avec RandomFavorites comme premier et unique plugin actuel**.
+- SoundboardChat dépend de la structure minifiée du sélecteur Discord ; la CI détecte la plupart des ruptures,
+  mais une validation visuelle et fonctionnelle en VM reste nécessaire ;
+- la distribution est beta-only et l’EXE n’est pas signé ;
+- les noms de projets C# et certains chemins internes conservent encore l’identité historique RandomFavorites ;
+- l’ajout ou la suppression de plugins change le bundle complet : il n’existe pas encore de sélection de
+  plugins au moment de l’installation.

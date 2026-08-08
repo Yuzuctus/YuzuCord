@@ -141,8 +141,9 @@ static void TestCatalogManifest()
     var manifest = CreateCatalogManifest("v2-beta1", 'a', 'b');
     BundleManifestValidator.Validate(manifest);
     Assert(manifest.ProductId == "YuzuctusVencord");
-    Assert(manifest.Plugins.Length == 1);
+    Assert(manifest.Plugins.Length == 2);
     Assert(manifest.Plugins[0].Id == "randomFavorites");
+    Assert(manifest.Plugins[1].Id == "soundboardChat");
 }
 
 static void TestSafeDeleteGuard()
@@ -630,7 +631,7 @@ static BundleManifest CreateManifest(string version, char pluginCommit, char ven
 
 static BundleManifest CreateCatalogManifest(string version, char pluginCommit, char vencordCommit) => new()
 {
-    SchemaVersion = 2,
+    SchemaVersion = 3,
     ProductId = "YuzuctusVencord",
     ProductName = "Yuzuctus Vencord",
     Version = version,
@@ -638,6 +639,7 @@ static BundleManifest CreateCatalogManifest(string version, char pluginCommit, c
     VencordCommit = new string(vencordCommit, 40),
     DistributionCommit = new string(pluginCommit, 40),
     PluginCommit = new string(pluginCommit, 40),
+    CatalogSchemaVersion = 2,
     PluginsDigest = new string('c', 64),
     Plugins =
     [
@@ -647,14 +649,37 @@ static BundleManifest CreateCatalogManifest(string version, char pluginCommit, c
             DisplayName = "RandomFavorites",
             Repository = "https://github.com/Yuzuctus/RandomFavorites.git",
             Commit = new string(pluginCommit, 40),
-            SourcePath = ".",
+            SourceType = "local",
+            SourceDigest = new string('d', 64),
             Entrypoint = "index.tsx",
-            Files = ["index.tsx", "Plugin RandomFavorites"],
+            Files = ["index.tsx", "_shared/soundboard/src/runtime.ts", "LICENSE"],
             SettingsKey = "RandomFavorites",
+            DistributionTags = ["YuzuMod"],
+            Dependencies = [],
+            Conflicts = [],
             License = "GPL-3.0-or-later",
             LicenseFile = "LICENSE",
             Maintainer = "Yuzuctus",
             Status = "maintained",
+        },
+        new PluginManifest
+        {
+            Id = "soundboardChat",
+            DisplayName = "SoundboardChat",
+            Repository = "https://github.com/Yuzuctus/RandomFavorites.git",
+            Commit = new string(pluginCommit, 40),
+            SourceType = "local",
+            SourceDigest = new string('e', 64),
+            Entrypoint = "index.tsx",
+            Files = ["index.tsx", "_shared/soundboard/src/runtime.ts", "LICENSE"],
+            SettingsKey = "SoundboardChat",
+            DistributionTags = ["YuzuMod"],
+            Dependencies = [],
+            Conflicts = [],
+            License = "GPL-3.0-or-later",
+            LicenseFile = "LICENSE",
+            Maintainer = "Yuzuctus",
+            Status = "experimental",
         },
     ],
     OpenAsarDigest = "sha256:" + new string('a', 64),
