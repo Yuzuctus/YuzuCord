@@ -280,33 +280,15 @@
                 <Border Grid.Column="1" Background="{StaticResource ArtworkSurface}"
                         BorderBrush="{StaticResource BorderSubtle}" BorderThickness="1,0,0,0">
                     <Grid ClipToBounds="True">
-                        <Ellipse Width="310" Height="310" Margin="70,-165,-120,0"
-                                 HorizontalAlignment="Right" VerticalAlignment="Top"
-                                 Fill="{StaticResource ArtworkShape}" />
-                        <Ellipse Width="190" Height="190" Margin="0,105,110,0"
-                                 HorizontalAlignment="Center" VerticalAlignment="Top"
-                                 Stroke="{StaticResource Accent}" StrokeThickness="1"
-                                 Opacity="0.16" />
-                        <Grid Margin="24,24,24,0" VerticalAlignment="Top">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Orientation="Horizontal">
-                                <Ellipse Width="6" Height="6" Fill="{StaticResource Accent}" />
-                                <Ellipse Width="6" Height="6" Fill="{StaticResource YuzuLemon}" Margin="7,0,0,0" />
-                                <Ellipse Width="6" Height="6" Fill="{StaticResource YuzuBlush}" Margin="7,0,0,0" />
-                            </StackPanel>
-                            <TextBlock Grid.Column="1" Text="YUZU / 01"
-                                       Style="{StaticResource QuietText}"
-                                       FontFamily="Cascadia Mono, Consolas"
-                                       HorizontalAlignment="Right" />
-                        </Grid>
-                        <Image Source="Assets/Artwork/YuzuChibiHello.png"
-                               Width="390" Margin="-55,62,-60,-48"
+                        <Image Width="390" Margin="-55,62,-60,-48"
                                HorizontalAlignment="Center" VerticalAlignment="Bottom"
                                Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"
-                               IsHitTestVisible="False" />
+                               IsHitTestVisible="False">
+                            <Image.Source>
+                                <BitmapImage UriSource="Assets/Artwork/YuzuChibiHello.png"
+                                             DecodePixelWidth="520" CacheOption="OnLoad" />
+                            </Image.Source>
+                        </Image>
                     </Grid>
                 </Border>
             </Grid>
@@ -324,13 +306,15 @@
                                   AutomationProperties.Name="Afficher les options avancées"
                                   Checked="AdvancedToggle_OnChanged"
                                   Unchecked="AdvancedToggle_OnChanged">
-                        <StackPanel Orientation="Horizontal">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <Path x:Name="AdvancedChevron" Width="12" Height="8" Margin="0,0,11,0"
                                   Stroke="{StaticResource TextSecondary}" StrokeThickness="1.8"
                                   StrokeStartLineCap="Round" StrokeEndLineCap="Round"
                                   Data="{StaticResource ChevronGeometry}"
+                                  VerticalAlignment="Center"
                                   RenderTransformOrigin="0.5,0.5" />
-                            <AccessText Text="Options _avancées" FontSize="14" />
+                            <AccessText Text="Options _avancées" FontSize="14"
+                                        VerticalAlignment="Center" />
                         </StackPanel>
                     </ToggleButton>
                     <Button x:Name="RepairButton" Grid.Column="1" Content="_Réparer"
@@ -342,7 +326,7 @@
                             AutomationProperties.Name="Plus d'options" ToolTip="Plus d'options"
                             Click="MoreButton_OnClick">
                         <Button.ContextMenu>
-                            <ContextMenu Placement="Top">
+                            <ContextMenu Placement="Top" HorizontalOffset="-190">
                                 <MenuItem x:Name="RepairMenuItem" Header="_Réparer l'installation" Click="RepairMenuItem_OnClick" />
                                 <MenuItem Header="Afficher le _journal" Click="ShowLogMenuItem_OnClick" />
                                 <MenuItem Header="Ouvrir le dossier des _logs" Click="OpenLogsFolderMenuItem_OnClick" />

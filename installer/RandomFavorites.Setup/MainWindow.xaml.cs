@@ -7,6 +7,7 @@ using System.Windows.Automation.Peers;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using RandomFavorites.Setup.Core.Models;
 using RandomFavorites.Setup.Core.Services;
 using RandomFavorites.Setup.Dialogs;
@@ -16,7 +17,7 @@ namespace RandomFavorites.Setup;
 
 public partial class MainWindow : Window
 {
-    private readonly InstallerService _installerService = new();
+    private InstallerService? _installerService;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private readonly List<string> _logLines = [];
     private CancellationTokenSource? _operationCancellation;
@@ -46,7 +47,6 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        _installerService.LogLine += AppendLog;
         ApplyViewState();
 
         Closing += (_, eventArgs) =>
@@ -61,9 +61,21 @@ public partial class MainWindow : Window
     private DiscordInstallation? SelectedDiscord =>
         DiscordBranchCombo.SelectedItem as DiscordInstallation;
 
+    private InstallerService InstallerService =>
+        _installerService ??= CreateInstallerService();
+
+    private InstallerService CreateInstallerService()
+    {
+        var service = new InstallerService();
+        service.LogLine += AppendLog;
+        return service;
+    }
+
     private async void MainWindow_OnLoaded(object sender, RoutedEventArgs e)
     {
         ClampToWorkArea();
+        await Dispatcher.Yield(DispatcherPriority.ContextIdle);
+        _ = InstallerService;
         try
         {
             await DetectDiscordAsync();
@@ -98,8 +110,8 @@ public partial class MainWindow : Window
         await Task.Yield();
 
         var previousBranch = SelectedDiscord?.Branch;
-        var installations = _installerService.DiscoverDiscordInstallations();
-        var savedState = _installerService.ReadState();
+        var installations = InstallerService.DiscoverDiscordInstallations();
+        var savedState = InstallerService.ReadState();
         var selected = installations.FirstOrDefault(item => item.Branch == previousBranch)
             ?? installations.FirstOrDefault(item => item.Branch == savedState?.Branch)
             ?? installations.FirstOrDefault();
@@ -121,7 +133,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            _availableManifest = await _installerService.GetAvailableManifestAsync(cancellationToken);
+            _availableManifest = await InstallerService.GetAvailableManifestAsync(cancellationToken);
             _inspectionWarning = null;
         }
         catch (OperationCanceledException)
@@ -151,15 +163,15 @@ public partial class MainWindow : Window
             return;
         }
 
-        var state = _installerService.ReadState();
+        var state = InstallerService.ReadState();
         _installedState = state?.Branch == discord.Branch ? state : null;
-        _installedManifest = _installerService.ReadInstalledManifest(_installedState);
-        _installationHealthy = _installerService.IsInstallationHealthy(
+        _installedManifest = InstallerService.ReadInstalledManifest(_installedState);
+        _installationHealthy = InstallerService.IsInstallationHealthy(
             discord,
             _installedState,
             _installedManifest);
-        _openAsarInstalled = _installerService.IsOpenAsarInstalled(discord);
-        _installedOpenAsarDigest = _installerService.GetOpenAsarDigest(discord);
+        _openAsarInstalled = InstallerService.IsOpenAsarInstalled(discord);
+        _installedOpenAsarDigest = InstallerService.GetOpenAsarDigest(discord);
         if (resetOpenAsarPreference) SetOpenAsarToggle(_openAsarInstalled);
     }
 
@@ -431,7 +443,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            _installerService.StartDiscord(discord);
+            InstallerService.StartDiscord(discord);
             _canOpenDiscord = false;
             return result with { Message = result.Message + " Discord a été relancé." };
         }
@@ -458,7 +470,7 @@ public partial class MainWindow : Window
                 var desiredOpenAsar = _desiredOpenAsar;
                 _ = RunOperationAsync(
                     "Installation terminée",
-                    (discord, progress, token) => _installerService.InstallOrUpdateAsync(
+                    (discord, progress, token) => InstallerService.InstallOrUpdateAsync(
                         discord,
                         desiredOpenAsar,
                         progress,
@@ -535,7 +547,7 @@ public partial class MainWindow : Window
         var desiredOpenAsar = _desiredOpenAsar;
         _ = RunOperationAsync(
             "Réparation terminée",
-            (discord, progress, token) => _installerService.RepairAsync(
+            (discord, progress, token) => InstallerService.RepairAsync(
                 discord,
                 desiredOpenAsar,
                 progress,
@@ -550,7 +562,7 @@ public partial class MainWindow : Window
 
         _ = RunOperationAsync(
             "Désinstallation terminée",
-            (discord, progress, token) => _installerService.UninstallAsync(
+            (discord, progress, token) => InstallerService.UninstallAsync(
                 discord,
                 selection.Mode,
                 selection.RemoveManagedPluginSettings,
@@ -644,7 +656,7 @@ public partial class MainWindow : Window
         }
 
         _logWindow = new LogWindow(
-            _installerService.CurrentLogFile,
+            InstallerService.CurrentLogFile,
             string.Join(Environment.NewLine, _logLines))
         {
             Owner = this,
@@ -655,10 +667,10 @@ public partial class MainWindow : Window
 
     private void OpenLogsFolderMenuItem_OnClick(object sender, RoutedEventArgs e)
     {
-        Directory.CreateDirectory(_installerService.Layout.Logs);
+        Directory.CreateDirectory(InstallerService.Layout.Logs);
         using var process = Process.Start(new ProcessStartInfo
         {
-            FileName = _installerService.Layout.Logs,
+            FileName = InstallerService.Layout.Logs,
             UseShellExecute = true,
         });
     }
@@ -688,7 +700,7 @@ public partial class MainWindow : Window
     }
 
     private void AppendUiLog(string message) =>
-        _installerService.WriteDiagnostic(message);
+        InstallerService.WriteDiagnostic(message);
 
     private void AppendLog(string line)
     {
@@ -771,8 +783,11 @@ public partial class MainWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         _lifetimeCancellation.Cancel();
-        _installerService.LogLine -= AppendLog;
-        _installerService.Dispose();
+        if (_installerService is not null)
+        {
+            _installerService.LogLine -= AppendLog;
+            _installerService.Dispose();
+        }
         _operationCancellation?.Dispose();
         _lifetimeCancellation.Dispose();
         base.OnClosed(e);

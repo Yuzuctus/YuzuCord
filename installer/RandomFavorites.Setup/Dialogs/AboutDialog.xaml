@@ -57,13 +57,15 @@
                 <Border Grid.Column="1" Background="{StaticResource ArtworkSurface}"
                         BorderBrush="{StaticResource BorderSubtle}" BorderThickness="1,0,0,0">
                     <Grid ClipToBounds="True">
-                        <Ellipse Width="170" Height="170" Margin="70,-70,-70,0"
-                                 Fill="{StaticResource ArtworkShape}" />
-                        <Image Source="../Assets/Artwork/YuzuChibiHello.png"
-                               Width="230" Margin="-35,18,-38,-32"
+                        <Image Width="230" Margin="-35,18,-38,-32"
                                HorizontalAlignment="Center" VerticalAlignment="Bottom"
                                Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"
-                               IsHitTestVisible="False" />
+                               IsHitTestVisible="False">
+                            <Image.Source>
+                                <BitmapImage UriSource="../Assets/Artwork/YuzuChibiHello.png"
+                                             DecodePixelWidth="300" CacheOption="OnLoad" />
+                            </Image.Source>
+                        </Image>
                     </Grid>
                 </Border>
             </Grid>

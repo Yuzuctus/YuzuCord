@@ -6,7 +6,6 @@
     <SolidColorBrush x:Key="SurfaceHover" Color="#1A2522" />
     <SolidColorBrush x:Key="SurfaceRaised" Color="#19221F" />
     <SolidColorBrush x:Key="ArtworkSurface" Color="#15201D" />
-    <SolidColorBrush x:Key="ArtworkShape" Color="#20302B" />
     <SolidColorBrush x:Key="BorderSubtle" Color="#27332F" />
     <SolidColorBrush x:Key="BorderStrong" Color="#596A64" />
     <SolidColorBrush x:Key="TextPrimary" Color="#F3F5F0" />
@@ -19,9 +18,6 @@
     <SolidColorBrush x:Key="AccentPressed" Color="#82CAA8" />
     <SolidColorBrush x:Key="AccentInk" Color="#102019" />
     <SolidColorBrush x:Key="AccentSurface" Color="#182B24" />
-    <SolidColorBrush x:Key="YuzuLemon" Color="#F1D987" />
-    <SolidColorBrush x:Key="YuzuBlue" Color="#80B9D8" />
-    <SolidColorBrush x:Key="YuzuBlush" Color="#ECA4B0" />
 
     <SolidColorBrush x:Key="Error" Color="#FF9D9D" />
     <SolidColorBrush x:Key="ErrorSurface" Color="#2B1B1B" />

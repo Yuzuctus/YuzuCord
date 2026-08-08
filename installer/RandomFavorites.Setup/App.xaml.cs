@@ -1,5 +1,4 @@
 using System.Windows;
-using System.Windows.Media;
 
 namespace RandomFavorites.Setup;
 
@@ -20,7 +19,6 @@ public partial class App : Application
         Resources["SurfaceHover"] = SystemColors.ControlBrush;
         Resources["SurfaceRaised"] = SystemColors.WindowBrush;
         Resources["ArtworkSurface"] = SystemColors.WindowBrush;
-        Resources["ArtworkShape"] = SystemColors.ControlBrush;
         Resources["BorderSubtle"] = SystemColors.WindowTextBrush;
         Resources["BorderStrong"] = SystemColors.WindowTextBrush;
         Resources["TextPrimary"] = SystemColors.WindowTextBrush;
@@ -37,10 +35,5 @@ public partial class App : Application
         Resources["Warning"] = SystemColors.WindowTextBrush;
         Resources["WarningSurface"] = SystemColors.WindowBrush;
         Resources["SuccessSurface"] = SystemColors.WindowBrush;
-
-        // Decorative accent colors are removed so they cannot compete with controls.
-        Resources["YuzuLemon"] = Brushes.Transparent;
-        Resources["YuzuBlue"] = Brushes.Transparent;
-        Resources["YuzuBlush"] = Brushes.Transparent;
     }
 }
