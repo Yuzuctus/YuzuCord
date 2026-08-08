@@ -14,10 +14,12 @@ var tests = new (string Name, Action Run)[]
     ("latest release metadata is read without downloading the bundle", TestLatestManifest),
     ("beta release URLs target the beta tag", TestBetaReleaseUrls),
     ("beta manifest versions are accepted", TestBetaManifestVersion),
+    ("catalog manifests validate the Yuzuctus Vencord identity", TestCatalogManifest),
     ("safe deletion guard rejects broad and sibling paths", TestSafeDeleteGuard),
     ("installer state rejects payload paths outside its version directory", TestStatePathGuard),
+    ("legacy RandomFavorites state migrates to the branded payload root", TestLegacyStateMigration),
     ("payload identity changes when the Vencord build changes", TestPayloadIdentity),
-    ("settings cleanup removes only RandomFavorites and creates a backup", TestSettingsCleanup),
+    ("settings cleanup removes only managed plugins and creates a backup", TestSettingsCleanup),
     ("OpenAsar download is accepted only after SHA-256 verification", TestOpenAsarDownload),
     ("OpenAsar download is deleted when SHA-256 verification fails", TestOpenAsarDigestMismatch),
     ("OpenAsar install and uninstall restore the original Discord asar", TestOpenAsarInstallAndRestore),
@@ -51,7 +53,7 @@ return failures == 0 ? 0 : 1;
 static void TestChecksumParser()
 {
     const string hash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    Assert(ReleaseClient.ParseSha256($"{hash}  RandomFavoritesBundle.zip\n") == hash);
+    Assert(ReleaseClient.ParseSha256($"{hash}  YuzuctusVencordBundle.zip\n") == hash);
     AssertThrows<InvalidDataException>(() => ReleaseClient.ParseSha256("not-a-checksum"));
 }
 
@@ -115,23 +117,32 @@ static void TestLatestManifest()
 
 static void TestBetaReleaseUrls()
 {
-    var expected = CreateManifest("v1.9.1-beta.3", 'e', 'f');
+    var expected = CreateManifest("v2-beta1", 'e', 'f');
     var handler = new ManifestReleaseHandler(expected);
-    using var client = new ReleaseClient(handler, "v1.9.1-beta.3");
+    using var client = new ReleaseClient(handler, "v2-beta1");
     var manifest = client.GetLatestManifestAsync(CancellationToken.None)
         .GetAwaiter()
         .GetResult();
 
     Assert(manifest.Version == expected.Version);
     Assert(handler.LastRequestUri?.AbsolutePath ==
-        "/Yuzuctus/RandomFavorites/releases/download/v1.9.1-beta.3/RandomFavoritesBundle.manifest.json");
+        "/Yuzuctus/RandomFavorites/releases/download/v2-beta1/YuzuctusVencordBundle.manifest.json");
 }
 
 static void TestBetaManifestVersion()
 {
-    BundleManifestValidator.Validate(CreateManifest("v1.9.1-beta.3", 'e', 'f'));
+    BundleManifestValidator.Validate(CreateManifest("v2-beta1", 'e', 'f'));
     AssertThrows<InvalidDataException>(() =>
         BundleManifestValidator.Validate(CreateManifest("v1.9.1-alpha.1", 'e', 'f')));
+}
+
+static void TestCatalogManifest()
+{
+    var manifest = CreateCatalogManifest("v2-beta1", 'a', 'b');
+    BundleManifestValidator.Validate(manifest);
+    Assert(manifest.ProductId == "YuzuctusVencord");
+    Assert(manifest.Plugins.Length == 1);
+    Assert(manifest.Plugins[0].Id == "randomFavorites");
 }
 
 static void TestSafeDeleteGuard()
@@ -177,6 +188,40 @@ static void TestStatePathGuard()
     }
 }
 
+static void TestLegacyStateMigration()
+{
+    var temporary = Path.Combine(Path.GetTempPath(), $"randomfavorites-migration-{Guid.NewGuid():N}");
+    var layout = new InstallerLayout(
+        Path.Combine(temporary, "local"),
+        Path.Combine(temporary, "roaming"));
+    var legacyVersions = Path.Combine(layout.LegacyRoot, "versions");
+    var legacyPayload = Path.Combine(legacyVersions, "v1.8.8-aaaaaaaa-bbbbbbbb");
+    Directory.CreateDirectory(legacyPayload);
+    File.WriteAllText(Path.Combine(layout.LegacyRoot, "state.json"), JsonSerializer.Serialize(new
+    {
+        version = "v1.8.8",
+        branch = "Stable",
+        activeVersionDirectory = legacyPayload,
+        installedAtUtc = DateTimeOffset.UtcNow,
+    }));
+
+    try
+    {
+        using var service = new InstallerService(layout);
+        var migrated = service.ReadState();
+        Assert(migrated is not null);
+        Assert(migrated!.ActiveVersionDirectory.StartsWith(layout.Versions, StringComparison.OrdinalIgnoreCase));
+        Assert(Directory.Exists(migrated.ActiveVersionDirectory));
+        Assert(File.Exists(layout.StateFile));
+        Assert(File.Exists(Path.Combine(layout.LegacyRoot, "state.json.migrated")));
+    }
+    finally
+    {
+        if (Directory.Exists(temporary))
+            Directory.Delete(temporary, recursive: true);
+    }
+}
+
 static void TestPayloadIdentity()
 {
     var first = new BundleManifest
@@ -208,18 +253,23 @@ static void TestSettingsCleanup()
             {
               "plugins": {
                 "RandomFavorites": { "enabled": true, "maskGifs": true },
+                "ManagedPlugin": { "enabled": true },
                 "KeepMe": { "enabled": true }
               },
               "useQuickCss": true
             }
             """);
 
-        var backup = VencordSettingsEditor.RemoveRandomFavoritesSettings(settingsFile);
+        var backup = VencordSettingsEditor.RemovePluginSettings(
+            settingsFile,
+            ["RandomFavorites", "ManagedPlugin"],
+            "yuzuctus-vencord");
         Assert(backup is not null && File.Exists(backup));
 
         var result = JsonNode.Parse(File.ReadAllText(settingsFile))!.AsObject();
         var plugins = result["plugins"]!.AsObject();
         Assert(!plugins.ContainsKey("RandomFavorites"));
+        Assert(!plugins.ContainsKey("ManagedPlugin"));
         Assert(plugins.ContainsKey("KeepMe"));
         Assert(result["useQuickCss"]!.GetValue<bool>());
     }
@@ -523,7 +573,7 @@ static void TestInstallerUiProgress()
     var uninstalled = InstallerStateResolver.Resolve(new InstallerStateInput
     {
         HasDiscord = true,
-        Result = new InstallResult(true, "Désinstallation terminée", "RandomFavorites a été retiré."),
+        Result = new InstallResult(true, "Désinstallation terminée", "Les plugins gérés ont été retirés."),
     });
     Assert(uninstalled.Status == InstallerScreenStatus.Success);
     Assert(uninstalled.PrimaryAction == InstallerPrimaryAction.Install);
@@ -573,6 +623,40 @@ static BundleManifest CreateManifest(string version, char pluginCommit, char ven
     Version = version,
     PluginCommit = new string(pluginCommit, 40),
     VencordCommit = new string(vencordCommit, 40),
+    OpenAsarDigest = "sha256:" + new string('a', 64),
+    OpenAsarPublishedAtUtc = DateTimeOffset.UtcNow,
+    BuiltAtUtc = DateTimeOffset.UtcNow,
+};
+
+static BundleManifest CreateCatalogManifest(string version, char pluginCommit, char vencordCommit) => new()
+{
+    SchemaVersion = 2,
+    ProductId = "YuzuctusVencord",
+    ProductName = "Yuzuctus Vencord",
+    Version = version,
+    VencordRepository = "https://github.com/Vendicated/Vencord.git",
+    VencordCommit = new string(vencordCommit, 40),
+    DistributionCommit = new string(pluginCommit, 40),
+    PluginCommit = new string(pluginCommit, 40),
+    PluginsDigest = new string('c', 64),
+    Plugins =
+    [
+        new PluginManifest
+        {
+            Id = "randomFavorites",
+            DisplayName = "RandomFavorites",
+            Repository = "https://github.com/Yuzuctus/RandomFavorites.git",
+            Commit = new string(pluginCommit, 40),
+            SourcePath = ".",
+            Entrypoint = "index.tsx",
+            Files = ["index.tsx", "Plugin RandomFavorites"],
+            SettingsKey = "RandomFavorites",
+            License = "GPL-3.0-or-later",
+            LicenseFile = "LICENSE",
+            Maintainer = "Yuzuctus",
+            Status = "maintained",
+        },
+    ],
     OpenAsarDigest = "sha256:" + new string('a', 64),
     OpenAsarPublishedAtUtc = DateTimeOffset.UtcNow,
     BuiltAtUtc = DateTimeOffset.UtcNow,
@@ -630,7 +714,7 @@ sealed class StaticReleaseHandler(byte[] payload, string hash) : HttpMessageHand
         HttpContent content = request.RequestUri?.AbsolutePath.EndsWith(
             ".sha256",
             StringComparison.OrdinalIgnoreCase) == true
-            ? new StringContent($"{hash}  RandomFavoritesBundle.zip\n")
+            ? new StringContent($"{hash}  YuzuctusVencordBundle.zip\n")
             : new ByteArrayContent(payload);
 
         return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)

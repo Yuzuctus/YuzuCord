@@ -12,13 +12,13 @@
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <DebugType>embedded</DebugType>
-    <AssemblyName>RandomFavoritesSetup</AssemblyName>
+    <AssemblyName>YuzuctusVencordSetup</AssemblyName>
     <RootNamespace>RandomFavorites.Setup</RootNamespace>
     <ApplicationIcon>Assets\RandomFavorites.ico</ApplicationIcon>
-    <RandomFavoritesReleaseTag Condition="'$(RandomFavoritesReleaseTag)' == ''">latest</RandomFavoritesReleaseTag>
+    <YuzuctusVencordReleaseTag Condition="'$(YuzuctusVencordReleaseTag)' == ''">latest</YuzuctusVencordReleaseTag>
   </PropertyGroup>
   <ItemGroup>
-    <AssemblyMetadata Include="RandomFavoritesReleaseTag" Value="$(RandomFavoritesReleaseTag)" />
+    <AssemblyMetadata Include="YuzuctusVencordReleaseTag" Value="$(YuzuctusVencordReleaseTag)" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\RandomFavorites.Setup.Core\RandomFavorites.Setup.Core.csproj" />

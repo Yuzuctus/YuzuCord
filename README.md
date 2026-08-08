@@ -1,63 +1,75 @@
-# RandomFavorites
+# Yuzuctus Vencord
 
-Un plugin Vencord qui envoie un **GIF**, une **emote**, un **sticker** ou un **son de soundboard** aléatoire depuis Discord.
+Une distribution personnalisée de Vencord pour Windows. Le catalogue actuel contient uniquement le plugin
+**RandomFavorites**, mais la compilation et l'installateur sont déjà structurés pour accueillir plusieurs
+plugins indépendants.
+
+## Statut
+
+Le projet est actuellement distribué uniquement en **beta**. La release de cette migration utilise le tag
+`v2-beta1`.
 
 ## Installer sur Windows
 
-1. [Télécharge **RandomFavoritesSetup.exe**](https://github.com/Yuzuctus/RandomFavorites/releases/latest/download/RandomFavoritesSetup.exe).
+1. Télécharge **YuzuctusVencordSetup.exe** depuis la release beta officielle.
 2. Ouvre le fichier et choisis ta version de Discord.
 3. Coche **OpenAsar** si tu veux aussi installer cette optimisation facultative.
 4. Clique sur **Installer**.
 5. Dans Discord, va dans `Paramètres > Vencord > Plugins` et active **RandomFavorites**.
 
-Git, Node.js et pnpm ne sont pas nécessaires. L'installateur prépare les fichiers pendant que Discord reste ouvert, puis le ferme seulement au moment de l'installation. L'option avancée **Relancer Discord une fois terminé** est activée par défaut et peut être décochée avant l'opération.
+Git, Node.js et pnpm ne sont pas nécessaires pour l'installation du bundle beta. L'installateur vérifie le
+bundle avec SHA-256 avant de modifier Discord.
 
-> L'application n'est pas encore signée. Si Windows SmartScreen apparaît, vérifie que le fichier vient bien de la page [Releases officielle](https://github.com/Yuzuctus/RandomFavorites/releases), puis choisis **Informations complémentaires > Exécuter quand même**.
+> L'application n'est pas encore signée. Si Windows SmartScreen apparaît, vérifie que le fichier vient bien
+> de la page Releases officielle, puis choisis **Informations complémentaires > Exécuter quand même**.
 
-## Utiliser le plugin
+## Plugin actuel
 
-- **Clic gauche sur le dé** : effectue le tirage configuré.
-- **Clic droit sur le dé** : choisit GIF, emote, sticker, soundboard et le mode de tirage.
-- **Aperçu sécurisé** : affiche le GIF, l'emote, le sticker ou le son dans une fenêtre privée avant tout envoi. Rien n'est envoyé tant que tu ne confirmes pas.
-- **Soundboard dans le chat** : si **Soundboards au clic gauche** est activé, RandomFavorites charge automatiquement les sons Discord accessibles au premier tirage, puis télécharge le son choisi depuis le CDN Discord et l’envoie comme pièce jointe audio. Aucun salon vocal ni permission `SPEAK` ou `USE_SOUNDBOARD` n'est requis.
-- **Soundboard vocal** : le sélecteur contient toujours un serveur virtuel **FavoriteRandom**, avec son icône, juste sous les favoris, dans les vocaux de serveur comme dans les appels privés en DM. **Lecture directe** joue immédiatement un son aléatoire ; son **Aperçu sécurisé** reste indépendant et confirme une lecture dans le vocal.
+**RandomFavorites** envoie un GIF, une emote, un sticker ou un son de soundboard aléatoire depuis Discord.
 
-Les réglages sont en français si Discord est en français, sinon en anglais. Ils permettent notamment de choisir :
+- Clic gauche sur le dé : effectue le tirage configuré.
+- Clic droit sur le dé : choisit la catégorie et le mode de tirage.
+- L'aperçu sécurisé demande une confirmation avant tout envoi ou toute lecture.
+- Les réglages sont en français si Discord est en français, sinon en anglais.
 
-- un élément de chaque type ou un seul élément parmi les types cochés ;
-- une répartition équilibrée sur la durée (base `25/25/25/25`, `33/33/33`, ou `50/50` avec deux types) ;
-- les spoilers et le texte `Gif random :` ;
-- toutes les emotes/stickers disponibles ou seulement les favoris ;
-- le nom de base des pièces jointes soundboard ; l'extension audio réelle (`.mp3`, `.ogg` ou `.opus`) est ajoutée automatiquement ;
-- l'aperçu avant envoi et une réduction probabiliste des répétitions, avec une intensité légère, équilibrée ou forte.
-
-Le tirage utilise la source aléatoire cryptographique de l'environnement Discord. L'anti-répétition ne bloque jamais totalement un résultat : il réduit temporairement le poids des éléments récents, puis leur rend progressivement leur probabilité normale.
+Les fichiers du plugin restent dans `Plugin RandomFavorites`. Le catalogue `catalog/plugins.json` décrit son
+identifiant, sa source, son point d'entrée, sa licence et les fichiers à intégrer. Un futur plugin sera ajouté
+comme une nouvelle entrée sans modifier le cœur de l'installateur.
 
 ## Mettre à jour, réparer ou désinstaller
 
-Rouvre le même EXE :
+Rouvre le même EXE beta :
 
-- **Installer / Mettre à jour** récupère la dernière version stable et actualise OpenAsar lorsqu'il est actif ;
-- **Réparer** réapplique les fichiers après une mise à jour de Discord et revérifie OpenAsar ;
-- **Désinstaller** peut retirer seulement RandomFavorites, Vencord en conservant ses données, ou tout supprimer.
+- **Installer / Mettre à jour** récupère la dernière build beta vérifiée ;
+- **Réparer** réapplique la build sans supprimer les réglages ;
+- **Désinstaller** peut retirer les plugins gérés, Vencord en conservant ses données, ou tout supprimer.
 
-OpenAsar reste entièrement facultatif. Lorsqu'il est actif, chaque opération **Installer / Mettre à jour** ou **Réparer** récupère la release nightly officielle, vérifie l'empreinte SHA-256 publiée par GitHub et compare son contenu à la copie installée. Une mise à jour remplace uniquement OpenAsar : l'archive Discord d'origine reste intacte pour permettre sa restauration. Désactiver son interrupteur puis appliquer les changements le retire proprement. Le menu **Désinstaller** permet aussi de choisir explicitement de le conserver ou de le retirer.
+OpenAsar reste facultatif. Les réglages des plugins gérés sont sauvegardés avant leur suppression. Les anciennes
+installations RandomFavorites restent reconnues comme installations legacy ; la nouvelle distribution utilise
+son propre dossier `%LOCALAPPDATA%\\YuzuctusVencord`.
 
-GitHub compare chaque heure le commit Vencord officiel et le digest SHA-256 de la nightly OpenAsar aux valeurs du manifeste publié. Si l'un des deux change, le bundle et l'EXE de la dernière release sont reconstruits, les tests sont relancés, puis tous les assets sont remplacés seulement en cas de succès. L'EXE récupère donc le **dernier build Vencord vérifié compatible avec RandomFavorites** et connaît la release OpenAsar testée, même si le numéro de version du plugin n'a pas changé. Si une mise à jour casse la compilation ou les tests, GitHub conserve la dernière publication fonctionnelle.
+## Développement
 
-La surveillance GitHub ne modifie pas silencieusement Discord sur les PC déjà installés : il faut rouvrir l'EXE et cliquer sur **Mettre à jour** ou **Réparer** pour appliquer les nouvelles versions localement.
+Le projet ne contient pas de dépendances Node locales. Il est matérialisé dans un checkout Vencord avant la
+compilation :
 
-Les réglages non concernés sont conservés. Une sauvegarde est créée avant de retirer les réglages RandomFavorites.
+```text
+vencord/src/userplugins/<pluginId>
+```
 
-## Sécurité
+Le script `scripts/Materialize-Plugins.ps1` lit le catalogue et copie chaque plugin dans son propre dossier.
+Le pipeline beta exécute ensuite les tests, ESLint, le typecheck et le build Vencord.
 
-- aucun token Discord lu, stocké ou transmis ;
-- aucune télémétrie ni publicité ;
-- rien n'est envoyé sans clic, commande ou confirmation explicite ;
-- les téléchargements de l'installateur sont vérifiés par SHA-256.
+## Sécurité et licences
 
-RandomFavorites est un plugin tiers indépendant de Vencord et d'OpenAsar, publié sous licence `GPL-3.0-or-later`.
+- aucun token Discord n'est lu, stocké ou transmis par cette distribution ;
+- aucune télémétrie ni publicité n'est ajoutée par l'installateur ;
+- rien n'est envoyé sans action explicite de l'utilisateur ;
+- les plugins tiers futurs devront être épinglés sur un commit et déclarer leur licence ;
+- un plugin Vencord s'exécute dans le processus Discord et doit donc être approuvé avant son intégration.
 
-### Ancienne installation par script
+Yuzuctus Vencord et RandomFavorites sont publiés sous licence `GPL-3.0-or-later`. Les composants tiers sont
+documentés dans `installer/THIRD_PARTY_NOTICES.md`.
 
-Le fichier `Installer RandomFavorites.cmd` reste disponible comme méthode de secours pour les développeurs et le dépannage. La méthode recommandée pour les utilisateurs est l'EXE de la page Releases.
+Le fichier `Installer RandomFavorites.cmd` est conservé comme ancien lanceur. La nouvelle entrée recommandée
+est `Installer Yuzuctus Vencord.cmd`.

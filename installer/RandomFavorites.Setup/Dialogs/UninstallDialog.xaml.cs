@@ -6,7 +6,7 @@ namespace RandomFavorites.Setup.Dialogs;
 
 public sealed record UninstallSelection(
     UninstallMode Mode,
-    bool RemoveRandomFavoritesSettings,
+    bool RemoveManagedPluginSettings,
     bool RemoveOpenAsar);
 
 public partial class UninstallDialog : Window
@@ -40,7 +40,7 @@ public partial class UninstallDialog : Window
             ? "Vencord, ses thèmes et ses réglages locaux seront supprimés."
             : VencordKeepDataRadio.IsChecked == true
                 ? "Vencord sera retiré. Ses réglages resteront disponibles pour une réinstallation."
-                : "RandomFavorites sera retiré. Vencord et ses autres réglages seront conservés.";
+                : "Les plugins gérés seront retirés. Vencord et ses autres réglages seront conservés.";
         if (RemoveOpenAsarCheck.Visibility == Visibility.Visible)
         {
             explanation += RemoveOpenAsarCheck.IsChecked == true
@@ -57,7 +57,7 @@ public partial class UninstallDialog : Window
             ? UninstallMode.VencordRemoveData
             : VencordKeepDataRadio.IsChecked == true
                 ? UninstallMode.VencordKeepData
-                : UninstallMode.RandomFavoritesOnly;
+                : UninstallMode.ManagedPluginsOnly;
         Selection = new UninstallSelection(
             mode,
             PluginOnlyRadio.IsChecked == true && RemovePluginSettingsCheck.IsChecked == true,

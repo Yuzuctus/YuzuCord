@@ -8,6 +8,9 @@ namespace RandomFavorites.Setup.Core.Services;
 
 public sealed class InstallerService : IDisposable
 {
+    public const string ProductId = "YuzuctusVencord";
+    public const string ProductName = "Yuzuctus Vencord";
+
     private const int MaximumBundleEntries = 2048;
     private const long MaximumExtractedBundleBytes = 512L * 1024 * 1024;
     private static readonly string[] RequiredBundleFiles =
@@ -98,6 +101,20 @@ public sealed class InstallerService : IDisposable
                 "tools",
                 "VencordInstallerCli.exe");
             if (!File.Exists(patcher) || !File.Exists(installer)) return false;
+            foreach (var requiredFile in RequiredBundleFiles
+                         .Concat(manifest.RequiredFiles ?? [])
+                         .Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                var resolved = Path.GetFullPath(Path.Combine(state.ActiveVersionDirectory, requiredFile));
+                var versionRoot = Path.GetFullPath(state.ActiveVersionDirectory).TrimEnd(
+                    Path.DirectorySeparatorChar,
+                    Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+                if (!resolved.StartsWith(versionRoot, StringComparison.OrdinalIgnoreCase)
+                    || !File.Exists(resolved))
+                {
+                    return false;
+                }
+            }
             ValidateDiscordPatch(discord, patcher);
             return true;
         }
@@ -146,7 +163,10 @@ public sealed class InstallerService : IDisposable
         var safeVersion = string.Concat(
             manifest.Version.Select(character =>
                 Path.GetInvalidFileNameChars().Contains(character) ? '-' : character));
-        var pluginSuffix = manifest.PluginCommit[..Math.Min(8, manifest.PluginCommit.Length)];
+        var pluginIdentity = string.IsNullOrWhiteSpace(manifest.PluginsDigest)
+            ? manifest.PluginCommit
+            : manifest.PluginsDigest;
+        var pluginSuffix = pluginIdentity[..Math.Min(8, pluginIdentity.Length)];
         var vencordSuffix = manifest.VencordCommit[..Math.Min(8, manifest.VencordCommit.Length)];
 
         return string.Join(
@@ -157,7 +177,8 @@ public sealed class InstallerService : IDisposable
 
     public InstallState? ReadState()
     {
-        if (!File.Exists(_layout.StateFile)) return null;
+        if (!File.Exists(_layout.StateFile))
+            return TryMigrateLegacyState();
 
         try
         {
@@ -176,6 +197,56 @@ public sealed class InstallerService : IDisposable
         catch (Exception error)
         {
             WriteLog($"État local illisible, une réparation complète sera proposée : {error.Message}");
+            return null;
+        }
+    }
+
+    private InstallState? TryMigrateLegacyState()
+    {
+        var legacyStateFile = Path.Combine(_layout.LegacyRoot, "state.json");
+        var legacyVersions = Path.Combine(_layout.LegacyRoot, "versions");
+        if (!File.Exists(legacyStateFile)) return null;
+
+        try
+        {
+            var legacyState = JsonSerializer.Deserialize<InstallState>(
+                File.ReadAllText(legacyStateFile),
+                JsonOptions);
+            if (legacyState is null || !Enum.IsDefined(legacyState.Branch))
+                return null;
+
+            _layout.EnsureSafeDeleteTarget(legacyState.ActiveVersionDirectory, legacyVersions);
+            if (!Directory.Exists(legacyState.ActiveVersionDirectory)) return null;
+
+            var versionName = Path.GetFileName(
+                Path.GetFullPath(legacyState.ActiveVersionDirectory)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            if (string.IsNullOrWhiteSpace(versionName)) return null;
+
+            _layout.EnsureDirectories();
+            var migratedDirectory = Path.Combine(_layout.Versions, versionName);
+            if (Directory.Exists(migratedDirectory)) return null;
+            Directory.Move(legacyState.ActiveVersionDirectory, migratedDirectory);
+
+            var migratedState = new InstallState
+            {
+                ProductId = string.IsNullOrWhiteSpace(legacyState.ProductId)
+                    ? "RandomFavorites"
+                    : legacyState.ProductId,
+                Version = legacyState.Version,
+                PluginsDigest = legacyState.PluginsDigest,
+                Branch = legacyState.Branch,
+                ActiveVersionDirectory = migratedDirectory,
+                InstalledAtUtc = legacyState.InstalledAtUtc,
+            };
+            WriteState(migratedState);
+            File.Move(legacyStateFile, legacyStateFile + ".migrated", overwrite: true);
+            WriteLog("Ancienne installation RandomFavorites migree vers Yuzuctus Vencord.");
+            return migratedState;
+        }
+        catch (Exception error)
+        {
+            WriteLog($"Migration de l'ancienne installation ignoree : {error.Message}");
             return null;
         }
     }
@@ -208,7 +279,7 @@ public sealed class InstallerService : IDisposable
 
             progress?.Report(new InstallerProgress(
                 openAsarPath is null ? 0.52 : 0.62,
-                "Préparation de RandomFavorites",
+                "Préparation de Yuzuctus Vencord",
                 "Extraction sécurisée de la version compilée…",
                 true));
             stagedDirectory = Path.Combine(_layout.Versions, $".staging-{Guid.NewGuid():N}");
@@ -323,7 +394,9 @@ public sealed class InstallerService : IDisposable
 
             var state = new InstallState
             {
+                ProductId = manifest.ProductId,
                 Version = manifest.Version,
+                PluginsDigest = manifest.PluginsDigest,
                 Branch = discord.Branch,
                 ActiveVersionDirectory = finalDirectory,
                 InstalledAtUtc = DateTimeOffset.UtcNow,
@@ -334,15 +407,15 @@ public sealed class InstallerService : IDisposable
                 1,
                 "Installation terminée",
                 installOpenAsar
-                    ? $"RandomFavorites {manifest.Version} est prêt et OpenAsar est à jour."
-                    : $"RandomFavorites {manifest.Version} est prêt."));
-            WriteLog($"RandomFavorites {manifest.Version} installé avec succès.");
+                    ? $"Yuzuctus Vencord {manifest.Version} est prêt et OpenAsar est à jour."
+                    : $"Yuzuctus Vencord {manifest.Version} est prêt."));
+            WriteLog($"Yuzuctus Vencord {manifest.Version} installé avec succès.");
             return new InstallResult(
                 true,
-                "RandomFavorites est installé",
+                "Yuzuctus Vencord est installé",
                 installOpenAsar
-                    ? "OpenAsar utilise la dernière release officielle. RandomFavorites peut maintenant être utilisé dans Discord."
-                    : "RandomFavorites peut maintenant être utilisé dans Discord.",
+                    ? "OpenAsar utilise la dernière release officielle. Yuzuctus Vencord peut maintenant être utilisé dans Discord."
+                    : "Yuzuctus Vencord peut maintenant être utilisé dans Discord.",
                 manifest.Version);
         }
         catch (OperationCanceledException)
@@ -375,7 +448,7 @@ public sealed class InstallerService : IDisposable
     public async Task<InstallResult> UninstallAsync(
         DiscordInstallation discord,
         UninstallMode mode,
-        bool removeRandomFavoritesSettings,
+        bool removeManagedPluginSettings,
         bool removeOpenAsar,
         IProgress<InstallerProgress>? progress,
         CancellationToken cancellationToken)
@@ -385,6 +458,7 @@ public sealed class InstallerService : IDisposable
             WriteLog($"Désinstallation demandée : {mode}.");
             var openAsarWasInstalled = IsOpenAsarInstalled(discord);
             var openAsarRemoved = false;
+            var installedManifest = ReadInstalledManifest(ReadState());
             var officialInstaller = await _releaseClient.DownloadOfficialInstallerAsync(
                 _layout,
                 progress,
@@ -397,12 +471,12 @@ public sealed class InstallerService : IDisposable
             await StopDiscordAsync(discord, cancellationToken);
             WriteLog("Discord fermé pour appliquer la désinstallation.");
 
-            if (mode == UninstallMode.RandomFavoritesOnly)
+            if (mode == UninstallMode.ManagedPluginsOnly)
             {
                 progress?.Report(new InstallerProgress(
                     0.64,
                     "Conservation de Vencord",
-                    "Remplacement par la version officielle de Vencord…",
+                    "Retrait de la distribution Yuzuctus Vencord…",
                     true));
                 await RunVencordCliAsync(
                     officialInstaller,
@@ -423,19 +497,27 @@ public sealed class InstallerService : IDisposable
                     WriteLog("OpenAsar retiré ; l'archive Discord d'origine a été restaurée.");
                 }
 
-                if (removeRandomFavoritesSettings)
+                if (removeManagedPluginSettings)
                 {
-                    var backup = VencordSettingsEditor.RemoveRandomFavoritesSettings(
-                        _layout.VencordSettingsFile);
+                    var settingsKeys = installedManifest?.Plugins
+                        .Select(plugin => plugin.SettingsKey)
+                        .Where(key => !string.IsNullOrWhiteSpace(key))
+                        .ToArray() ?? [];
+                    if (settingsKeys.Length == 0)
+                        settingsKeys = ["RandomFavorites"];
+                    var backup = VencordSettingsEditor.RemovePluginSettings(
+                        _layout.VencordSettingsFile,
+                        settingsKeys,
+                        "yuzuctus-vencord");
                     if (backup is not null)
-                        WriteLog($"Réglages RandomFavorites retirés. Sauvegarde : {backup}");
+                        WriteLog($"Réglages des plugins gérés retirés. Sauvegarde : {backup}");
                 }
 
                 RemoveCustomPayload();
                 var openAsarKept = openAsarWasInstalled && !openAsarRemoved;
                 progress?.Report(new InstallerProgress(
                     1,
-                    "RandomFavorites est désinstallé",
+                    "Yuzuctus Vencord est désinstallé",
                     openAsarRemoved
                         ? "Vencord officiel est conservé et OpenAsar a été retiré."
                         : openAsarKept
@@ -443,12 +525,12 @@ public sealed class InstallerService : IDisposable
                             : "Vencord officiel est conservé."));
                 return new InstallResult(
                     true,
-                    "RandomFavorites est désinstallé",
+                    "Yuzuctus Vencord est désinstallé",
                     openAsarRemoved
-                        ? "Vencord officiel et tous les autres plugins/réglages sont conservés. OpenAsar a été retiré."
+                        ? "Vencord officiel et les autres plugins/réglages sont conservés. OpenAsar a été retiré."
                         : openAsarKept
-                            ? "Vencord officiel, OpenAsar et tous les autres plugins/réglages sont conservés."
-                            : "Vencord officiel et tous les autres plugins/réglages sont conservés.");
+                            ? "Vencord officiel, OpenAsar et les autres plugins/réglages sont conservés."
+                            : "Vencord officiel et les autres plugins/réglages sont conservés.");
             }
 
             progress?.Report(new InstallerProgress(
@@ -733,7 +815,7 @@ public sealed class InstallerService : IDisposable
             && !patch.Contains(escapedPatcher, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidDataException(
-                "Discord n'a pas été relié à la version RandomFavorites attendue.");
+                "Discord n'a pas été relié à la version Yuzuctus Vencord attendue.");
         }
     }
 
@@ -754,7 +836,7 @@ public sealed class InstallerService : IDisposable
         }
 
         if (File.Exists(_layout.StateFile)) File.Delete(_layout.StateFile);
-        WriteLog("Fichiers compilés RandomFavorites supprimés.");
+        WriteLog("Fichiers compilés Yuzuctus Vencord supprimés.");
     }
 
     private void PruneInactiveVersions(string activeDirectory)

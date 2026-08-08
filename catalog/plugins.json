@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "plugins": [
+    {
+      "id": "randomFavorites",
+      "displayName": "RandomFavorites",
+      "repository": "https://github.com/Yuzuctus/RandomFavorites.git",
+      "sourcePath": ".",
+      "entrypoint": "index.tsx",
+      "files": [
+        "index.tsx",
+        "Plugin RandomFavorites"
+      ],
+      "settingsKey": "RandomFavorites",
+      "license": "GPL-3.0-or-later",
+      "licenseFile": "LICENSE",
+      "maintainer": "Yuzuctus",
+      "status": "maintained"
+    }
+  ]
+}

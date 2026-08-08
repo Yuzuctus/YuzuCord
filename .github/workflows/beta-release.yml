@@ -1,15 +1,16 @@
-name: Publish beta release
+name: Publish Yuzuctus Vencord beta release
 
 on:
   push:
     tags:
+      - "v[0-9]+-beta[0-9]+"
       - "v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+"
 
 permissions:
   contents: write
 
 concurrency:
-  group: randomfavorites-beta-release-assets
+  group: yuzuctus-vencord-beta-release-assets
   cancel-in-progress: false
 
 jobs:
@@ -18,10 +19,10 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 40
     steps:
-      - name: Check out RandomFavorites
+      - name: Check out Yuzuctus Vencord distribution
         uses: actions/checkout@v5
         with:
-          path: random-favorites
+          path: distribution
 
       - name: Check out current official Vencord
         uses: actions/checkout@v5
@@ -46,25 +47,25 @@ jobs:
           corepack enable
           corepack install
 
-      - name: Add RandomFavorites as a userplugin
+      - name: Materialize catalog plugins
         shell: pwsh
-        run: |
-          $destination = "vencord/src/userplugins/randomFavorites"
-          New-Item -ItemType Directory -Force -Path $destination | Out-Null
-          Copy-Item -LiteralPath random-favorites/index.tsx -Destination $destination
-          Copy-Item -LiteralPath "random-favorites/Plugin RandomFavorites" -Destination $destination -Recurse
+        run: >-
+          ./distribution/scripts/Materialize-Plugins.ps1
+          -CatalogPath ./distribution/catalog/plugins.json
+          -SourceRoot ./distribution
+          -VencordDirectory ./vencord
 
       - name: Install exact dependencies
         working-directory: vencord
         run: pnpm install --frozen-lockfile
 
-      - name: Verify plugin tests, lint, and types
+      - name: Verify catalog plugins, lint, and types
         working-directory: vencord
         shell: pwsh
         run: |
-          pnpm exec tsx --test "src/userplugins/randomFavorites/**/*.test.ts"
+          pnpm exec tsx --test "src/userplugins/**/*.test.ts"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          pnpm eslint src/userplugins/randomFavorites
+          pnpm eslint src/userplugins
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           pnpm testTsc
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -76,8 +77,8 @@ jobs:
       - name: Build verified release bundle
         shell: pwsh
         run: |
-          & random-favorites/scripts/Build-ReleaseBundle.ps1 `
-            -RandomFavoritesDirectory random-favorites `
+          & distribution/scripts/Build-ReleaseBundle.ps1 `
+            -DistributionDirectory distribution `
             -VencordDirectory vencord `
             -OutputDirectory release-assets `
             -Version $env:GITHUB_REF_NAME
@@ -86,23 +87,23 @@ jobs:
         shell: pwsh
         run: |
           $version = $env:GITHUB_REF_NAME.TrimStart("v")
-          dotnet publish random-favorites/installer/RandomFavorites.Setup/RandomFavorites.Setup.csproj `
+          dotnet publish distribution/installer/RandomFavorites.Setup/RandomFavorites.Setup.csproj `
             -c Release -r win-x64 --self-contained true `
             -p:Version=$version `
-            -p:RandomFavoritesReleaseTag=$env:GITHUB_REF_NAME `
+            -p:YuzuctusVencordReleaseTag=$env:GITHUB_REF_NAME `
             -o release-assets/setup
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Copy-Item -LiteralPath release-assets/setup/RandomFavoritesSetup.exe `
-            -Destination release-assets/RandomFavoritesSetup.exe
-          $setupPath = Join-Path $PWD "release-assets/RandomFavoritesSetup.exe"
+          Copy-Item -LiteralPath release-assets/setup/YuzuctusVencordSetup.exe `
+            -Destination release-assets/YuzuctusVencordSetup.exe
+          $setupPath = Join-Path $PWD "release-assets/YuzuctusVencordSetup.exe"
           $setupHash = (Get-FileHash -LiteralPath $setupPath -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$setupHash  RandomFavoritesSetup.exe" |
+          "$setupHash  YuzuctusVencordSetup.exe" |
             Set-Content -LiteralPath "$setupPath.sha256" -Encoding ascii -NoNewline
 
       - name: Run installer safety smoke tests
         run: >-
           dotnet run
-          --project random-favorites/installer/RandomFavorites.Setup.SmokeTests/RandomFavorites.Setup.SmokeTests.csproj
+          --project distribution/installer/RandomFavorites.Setup.SmokeTests/RandomFavorites.Setup.SmokeTests.csproj
           -c Release
 
       - name: Publish GitHub pre-release
@@ -111,13 +112,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create $env:GITHUB_REF_NAME `
-            release-assets/RandomFavoritesSetup.exe `
-            release-assets/RandomFavoritesSetup.exe.sha256 `
-            release-assets/RandomFavoritesBundle.zip `
-            release-assets/RandomFavoritesBundle.zip.sha256 `
-            release-assets/RandomFavoritesBundle.manifest.json `
+            release-assets/YuzuctusVencordSetup.exe `
+            release-assets/YuzuctusVencordSetup.exe.sha256 `
+            release-assets/YuzuctusVencordBundle.zip `
+            release-assets/YuzuctusVencordBundle.zip.sha256 `
+            release-assets/YuzuctusVencordBundle.manifest.json `
             --repo $env:GITHUB_REPOSITORY `
-            --title "RandomFavorites $env:GITHUB_REF_NAME" `
+            --title "Yuzuctus Vencord $env:GITHUB_REF_NAME" `
             --generate-notes `
             --prerelease `
             --verify-tag

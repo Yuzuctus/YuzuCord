@@ -11,7 +11,9 @@ public sealed class InstallerLayout
 
         LocalAppData = Path.GetFullPath(localAppData);
         RoamingAppData = Path.GetFullPath(roamingAppData);
-        Root = Path.Combine(LocalAppData, "RandomFavorites");
+        Root = Path.Combine(LocalAppData, "YuzuctusVencord");
+        LegacyRoot = Path.Combine(LocalAppData, "RandomFavorites");
+        LegacyManagerRoot = Path.Combine(LocalAppData, "RandomFavoritesVencord");
         Versions = Path.Combine(Root, "versions");
         Downloads = Path.Combine(Root, "downloads");
         Logs = Path.Combine(Root, "logs");
@@ -29,6 +31,10 @@ public sealed class InstallerLayout
     public string RoamingAppData { get; }
 
     public string Root { get; }
+
+    public string LegacyRoot { get; }
+
+    public string LegacyManagerRoot { get; }
 
     public string Versions { get; }
 

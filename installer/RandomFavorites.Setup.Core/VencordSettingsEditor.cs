@@ -10,14 +10,28 @@ public static class VencordSettingsEditor
         WriteIndented = true,
     };
 
-    public static string? RemoveRandomFavoritesSettings(string settingsFile)
+    public static string? RemovePluginSettings(
+        string settingsFile,
+        IEnumerable<string> settingsKeys,
+        string backupPrefix)
     {
         if (!File.Exists(settingsFile)) return null;
 
+        var keys = settingsKeys
+            .Where(key => !string.IsNullOrWhiteSpace(key))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        if (keys.Length == 0) return null;
+
         var document = JsonNode.Parse(File.ReadAllText(settingsFile)) as JsonObject
             ?? throw new InvalidDataException("Vencord settings are not a JSON object.");
-        if (document["plugins"] is not JsonObject plugins
-            || !plugins.Remove("RandomFavorites"))
+        if (document["plugins"] is not JsonObject plugins)
+            return null;
+
+        var removed = false;
+        foreach (var key in keys)
+            removed |= plugins.Remove(key);
+        if (!removed)
         {
             return null;
         }
@@ -26,7 +40,7 @@ public static class VencordSettingsEditor
             ?? throw new InvalidOperationException("The Vencord settings path has no parent directory.");
         var backupPath = Path.Combine(
             directory,
-            $"settings.before-randomfavorites-uninstall-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json");
+            $"settings.before-{backupPrefix}-uninstall-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json");
         File.Copy(settingsFile, backupPath, overwrite: false);
 
         var temporaryPath = settingsFile + ".tmp";
@@ -34,4 +48,7 @@ public static class VencordSettingsEditor
         File.Move(temporaryPath, settingsFile, overwrite: true);
         return backupPath;
     }
+
+    public static string? RemoveRandomFavoritesSettings(string settingsFile) =>
+        RemovePluginSettings(settingsFile, ["RandomFavorites"], "randomfavorites");
 }

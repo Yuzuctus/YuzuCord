@@ -193,7 +193,7 @@ public static class InstallerStateResolver
                 InstallerScreenStatus.NotInstalled,
                 InstallerStatusTone.Neutral,
                 InstallerStatusIcon.Star,
-                "RandomFavorites n'est pas installé",
+                "Yuzuctus Vencord n'est pas installé",
                 "Prêt pour l'installation",
                 InstallerPrimaryAction.Install,
                 "Installer",
@@ -220,7 +220,7 @@ public static class InstallerStateResolver
                 InstallerScreenStatus.Warning,
                 InstallerStatusTone.Warning,
                 InstallerStatusIcon.Warning,
-                "RandomFavorites est installé",
+                "Yuzuctus Vencord est installé",
                 input.InspectionWarning ?? "La version disponible n'a pas pu être vérifiée.",
                 openAsarPreferenceChanged
                     ? InstallerPrimaryAction.ApplyChanges
@@ -254,7 +254,7 @@ public static class InstallerStateResolver
                 InstallerScreenStatus.UpToDate,
                 InstallerStatusTone.Success,
                 InstallerStatusIcon.Check,
-                "RandomFavorites est à jour",
+                "Yuzuctus Vencord est à jour",
                 $"Version {input.InstalledManifest.Version}",
                 InstallerPrimaryAction.ApplyChanges,
                 "Appliquer les changements",
@@ -265,7 +265,7 @@ public static class InstallerStateResolver
             InstallerScreenStatus.UpToDate,
             InstallerStatusTone.Success,
             InstallerStatusIcon.Check,
-            "RandomFavorites est à jour",
+            "Yuzuctus Vencord est à jour",
             $"Version {input.InstalledManifest.Version}",
             context: "Aucune action nécessaire.",
             primaryActionText: "Tout est à jour");
@@ -273,10 +273,16 @@ public static class InstallerStateResolver
 
     private static bool BuildsMatch(BundleManifest installed, BundleManifest available) =>
         string.Equals(installed.Version, available.Version, StringComparison.OrdinalIgnoreCase)
-        && string.Equals(
-            installed.PluginCommit,
-            available.PluginCommit,
-            StringComparison.OrdinalIgnoreCase)
+        && string.Equals(installed.ProductId, available.ProductId, StringComparison.OrdinalIgnoreCase)
+        && (installed.SchemaVersion >= 2 && available.SchemaVersion >= 2
+            ? string.Equals(
+                installed.PluginsDigest,
+                available.PluginsDigest,
+                StringComparison.OrdinalIgnoreCase)
+            : string.Equals(
+                installed.PluginCommit,
+                available.PluginCommit,
+                StringComparison.OrdinalIgnoreCase))
         && string.Equals(
             installed.VencordCommit,
             available.VencordCommit,

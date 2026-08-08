@@ -12,11 +12,11 @@ namespace RandomFavorites.Setup.Core.Services;
 public sealed class ReleaseClient : IDisposable
 {
     public const string BundleUrl =
-        "https://github.com/Yuzuctus/RandomFavorites/releases/latest/download/RandomFavoritesBundle.zip";
+        "https://github.com/Yuzuctus/RandomFavorites/releases/latest/download/YuzuctusVencordBundle.zip";
     public const string ChecksumUrl =
-        "https://github.com/Yuzuctus/RandomFavorites/releases/latest/download/RandomFavoritesBundle.zip.sha256";
+        "https://github.com/Yuzuctus/RandomFavorites/releases/latest/download/YuzuctusVencordBundle.zip.sha256";
     public const string ManifestUrl =
-        "https://github.com/Yuzuctus/RandomFavorites/releases/latest/download/RandomFavoritesBundle.manifest.json";
+        "https://github.com/Yuzuctus/RandomFavorites/releases/latest/download/YuzuctusVencordBundle.manifest.json";
     public const string OfficialInstallerUrl =
         "https://github.com/Vencord/Installer/releases/latest/download/VencordInstallerCli.exe";
     public const string OfficialInstallerChecksumUrl =
@@ -35,19 +35,19 @@ public sealed class ReleaseClient : IDisposable
     {
         _httpClient = handler is null ? new HttpClient() : new HttpClient(handler);
         _httpClient.DefaultRequestHeaders.UserAgent.Add(
-            new ProductInfoHeaderValue("RandomFavoritesSetup", "1.0"));
+            new ProductInfoHeaderValue("YuzuctusVencordSetup", "2.0"));
         _httpClient.Timeout = TimeSpan.FromMinutes(15);
 
         var selectedReleaseTag = releaseTag ?? ReadBuildReleaseTag();
-        _bundleUrl = BuildReleaseAssetUrl(selectedReleaseTag, BundleUrl, "RandomFavoritesBundle.zip");
+        _bundleUrl = BuildReleaseAssetUrl(selectedReleaseTag, BundleUrl, "YuzuctusVencordBundle.zip");
         _checksumUrl = BuildReleaseAssetUrl(
             selectedReleaseTag,
             ChecksumUrl,
-            "RandomFavoritesBundle.zip.sha256");
+            "YuzuctusVencordBundle.zip.sha256");
         _manifestUrl = BuildReleaseAssetUrl(
             selectedReleaseTag,
             ManifestUrl,
-            "RandomFavoritesBundle.manifest.json");
+            "YuzuctusVencordBundle.manifest.json");
     }
 
     public async Task<string> DownloadVerifiedBundleAsync(
@@ -56,13 +56,13 @@ public sealed class ReleaseClient : IDisposable
         CancellationToken cancellationToken)
     {
         layout.EnsureDirectories();
-        var bundlePath = Path.Combine(layout.Downloads, "RandomFavoritesBundle.zip");
+        var bundlePath = Path.Combine(layout.Downloads, "YuzuctusVencordBundle.zip");
         var checksum = ParseSha256(await _httpClient.GetStringAsync(_checksumUrl, cancellationToken));
 
         await DownloadFileWithRetriesAsync(
             _bundleUrl,
             bundlePath,
-            "Téléchargement des fichiers prêts à l'emploi",
+            "Téléchargement de Yuzuctus Vencord",
             progress,
             cancellationToken);
 
@@ -345,8 +345,10 @@ public sealed class ReleaseClient : IDisposable
     {
         return Assembly.GetEntryAssembly()?
             .GetCustomAttributes<AssemblyMetadataAttribute>()
-            .FirstOrDefault(attribute => attribute.Key == "RandomFavoritesReleaseTag")?
-            .Value;
+            .FirstOrDefault(attribute => attribute.Key == "YuzuctusVencordReleaseTag")?.Value
+            ?? Assembly.GetEntryAssembly()?
+                .GetCustomAttributes<AssemblyMetadataAttribute>()
+                .FirstOrDefault(attribute => attribute.Key == "RandomFavoritesReleaseTag")?.Value;
     }
 
     private static string BuildReleaseAssetUrl(
@@ -360,8 +362,10 @@ public sealed class ReleaseClient : IDisposable
             return latestUrl;
         }
 
-        if (!Regex.IsMatch(releaseTag, "^v[0-9]+\\.[0-9]+\\.[0-9]+(?:-beta\\.[0-9]+)?$"))
-            throw new ArgumentException("Le tag de release RandomFavorites est invalide.", nameof(releaseTag));
+        if (!Regex.IsMatch(
+                releaseTag,
+                "^v(?:[0-9]+\\.[0-9]+\\.[0-9]+(?:-beta\\.[0-9]+)?|[0-9]+-beta[0-9]+)$"))
+            throw new ArgumentException("Le tag de release Yuzuctus Vencord est invalide.", nameof(releaseTag));
 
         return $"{ReleaseDownloadBaseUrl}/{releaseTag}/{assetName}";
     }

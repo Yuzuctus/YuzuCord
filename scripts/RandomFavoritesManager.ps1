@@ -3,11 +3,12 @@ param(
     [ValidateSet("stable", "ptb", "canary")]
     [string]$Branch = "stable",
 
-    [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA "RandomFavoritesVencord"),
+    [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA "YuzuctusVencord"),
 
     [string]$VencordRepository = "https://github.com/Vendicated/Vencord.git",
 
-    [string]$PluginRepository = "https://github.com/Yuzuctus/RandomFavorites.git",
+    [Alias("PluginRepository")]
+    [string]$DistributionRepository = "https://github.com/Yuzuctus/RandomFavorites.git",
 
     [switch]$SkipInject,
 
@@ -126,8 +127,8 @@ function New-TuiStages {
         },
         [PSCustomObject]@{
             Number = 4
-            Title = Get-UiText "Updating RandomFavorites" "Mise a jour de RandomFavorites"
-            Explanation = Get-UiText "Fetching the newest public version of the plugin." "Recuperation de la derniere version publique du plugin."
+            Title = Get-UiText "Updating Yuzuctus Vencord" "Mise a jour de Yuzuctus Vencord"
+            Explanation = Get-UiText "Fetching the newest public distribution catalog." "Recuperation du catalogue public de la distribution."
             Weight = 10
             State = "Pending"
             StartedAt = $null
@@ -147,7 +148,7 @@ function New-TuiStages {
         [PSCustomObject]@{
             Number = 6
             Title = Get-UiText "Building the custom Discord mod" "Compilation du mod Discord personnalise"
-            Explanation = Get-UiText "Creating Vencord with RandomFavorites included." "Creation de Vencord avec RandomFavorites inclus."
+            Explanation = Get-UiText "Creating Vencord with the catalog plugins included." "Creation de Vencord avec les plugins du catalogue."
             Weight = 20
             State = "Pending"
             StartedAt = $null
@@ -301,7 +302,7 @@ function Render-LiveTui {
             default { [ConsoleColor]::DarkCyan }
         }
 
-        $header = Format-TuiColumns "RANDOMFAVORITES" $outcomeLabel $innerWidth
+        $header = Format-TuiColumns "YUZUCTUS VENCORD" $outcomeLabel $innerWidth
         $subtitle = Format-TuiColumns `
             (Get-UiText "Vencord installation and update" "Installation et mise a jour de Vencord") `
             ("Discord " + $Branch) `
@@ -409,7 +410,7 @@ function Render-LiveTui {
         $footer = switch ($script:TuiOutcome) {
             "success" {
                 if ($script:InstalledToDiscord) {
-                    Get-UiText "Discord is ready with RandomFavorites." "Discord est pret avec RandomFavorites."
+                    Get-UiText "Discord is ready with Yuzuctus Vencord." "Discord est pret avec Yuzuctus Vencord."
                 } else {
                     Get-UiText "Build ready. Discord was not modified." "Compilation prete. Discord n'a pas ete modifie."
                 }
@@ -534,8 +535,8 @@ function Update-TuiActivity {
 function Write-Banner {
     Write-Host ""
     Write-Host "  +----------------------------------------------------------+" -ForegroundColor DarkCyan
-    Write-Host "  |                    RANDOMFAVORITES                       |" -ForegroundColor Cyan
-    $subtitle = Get-UiText "Simple Vencord installation and update" "Installation et mise a jour simple de Vencord"
+    Write-Host "  |                    YUZUCTUS VENCORD                       |" -ForegroundColor Cyan
+    $subtitle = Get-UiText "Custom Vencord installation and update" "Installation et mise a jour de Vencord personnalise"
     $subtitleLine = ("  |  " + $subtitle).PadRight(61).Substring(0, 61)
     Write-Host $subtitleLine -NoNewline -ForegroundColor White
     Write-Host "|" -ForegroundColor DarkCyan
@@ -635,7 +636,7 @@ function Write-FinalSuccess {
     Write-Host "|" -ForegroundColor Green
     Write-Host "  +----------------------------------------------------------+" -ForegroundColor Green
     if ($InstalledToDiscord) {
-        Write-Host "  $(Get-UiText "Discord is ready with RandomFavorites." "Discord est pret avec RandomFavorites.")" -ForegroundColor White
+        Write-Host "  $(Get-UiText "Discord is ready with Yuzuctus Vencord." "Discord est pret avec Yuzuctus Vencord.")" -ForegroundColor White
     } else {
         Write-Host "  $(Get-UiText "The build is ready. Discord was not modified." "La compilation est prete. Discord n'a pas ete modifie.")" -ForegroundColor White
     }
@@ -863,17 +864,17 @@ function Get-WindowsArchitecture {
             }
         }
         default {
-            throw "RandomFavorites Manager supports 64-bit x64 and ARM64 Windows installations."
+            throw "Yuzuctus Vencord Manager supports 64-bit x64 and ARM64 Windows installations."
         }
     }
 }
 
-function New-RandomFavoritesHttpClient {
+function New-YuzuctusVencordHttpClient {
     $client = New-Object Net.Http.HttpClient
     $client.Timeout = [TimeSpan]::FromMinutes(30)
     $null = $client.DefaultRequestHeaders.TryAddWithoutValidation(
         "User-Agent",
-        "RandomFavoritesManager/1.0"
+        "YuzuctusVencordManager/2.0"
     )
     return $client
 }
@@ -897,7 +898,7 @@ function Invoke-JsonRequest {
     )
 
     Write-TechnicalLog "JSON REQUEST: $Uri"
-    $client = New-RandomFavoritesHttpClient
+    $client = New-YuzuctusVencordHttpClient
 
     try {
         $requestTask = $client.GetStringAsync($Uri)
@@ -933,7 +934,7 @@ function Invoke-Download {
     )
 
     Write-TechnicalLog "DOWNLOAD: $Uri -> $Destination"
-    $client = New-RandomFavoritesHttpClient
+    $client = New-YuzuctusVencordHttpClient
     $response = $null
     $networkStream = $null
     $fileStream = $null
@@ -1428,10 +1429,10 @@ function Test-VencordPatch {
 function Write-UpdateLauncher {
     param(
         [string]$RootDirectory,
-        [string]$PluginDirectory
+        [string]$DistributionDirectory
     )
 
-    $sourceManager = Join-Path $PluginDirectory "scripts\RandomFavoritesManager.ps1"
+    $sourceManager = Join-Path $DistributionDirectory "scripts\RandomFavoritesManager.ps1"
     if (-not (Test-Path -LiteralPath $sourceManager)) {
         return
     }
@@ -1441,21 +1442,18 @@ function Write-UpdateLauncher {
         New-Item -ItemType Directory -Path $managedDirectory -Force | Out-Null
     }
 
-    $managedScript = Join-Path $managedDirectory "RandomFavoritesManager.ps1"
+    $managedScript = Join-Path $managedDirectory "YuzuctusVencordManager.ps1"
     Copy-Item -LiteralPath $sourceManager -Destination $managedScript -Force
 
-    $launcherPath = Join-Path $RootDirectory "Update RandomFavorites.cmd"
-    if (Test-Path -LiteralPath $launcherPath) {
-        return
-    }
+    $launcherPath = Join-Path $RootDirectory "Update Yuzuctus Vencord.cmd"
 
     $lines = @(
         "@echo off",
         "setlocal",
-        "title RandomFavorites - Mise a jour",
-        "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File `"%~dp0manager\RandomFavoritesManager.ps1`" -InstallRoot `"%~dp0.`" %*",
+        "title Yuzuctus Vencord - Mise a jour",
+        "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File `"%~dp0manager\YuzuctusVencordManager.ps1`" -InstallRoot `"%~dp0.`" %*",
         "set `"EXIT_CODE=%ERRORLEVEL%`"",
-        "if not defined RANDOM_FAVORITES_NO_PAUSE pause",
+        "if not defined YUZUCTUS_VENCORD_NO_PAUSE pause",
         "exit /b %EXIT_CODE%"
     )
 
@@ -1466,17 +1464,23 @@ function Write-State {
     param(
         [string]$RootDirectory,
         [string]$VencordDirectory,
-        [string]$PluginDirectory,
+        [string]$DistributionDirectory,
         [string]$DiscordBranch
     )
 
+    $catalogPath = Join-Path $DistributionDirectory "catalog\plugins.json"
+    $catalog = Get-Content -LiteralPath $catalogPath -Raw | ConvertFrom-Json
+    $pluginIds = @($catalog.plugins | ForEach-Object { [string]$_.id })
     $state = [ordered]@{
+        productId = "YuzuctusVencord"
         lastSuccessfulRun = [DateTime]::UtcNow.ToString("o")
         branch = $DiscordBranch
         vencordDirectory = $VencordDirectory
-        pluginDirectory = $PluginDirectory
+        distributionDirectory = $DistributionDirectory
+        pluginIds = $pluginIds
         vencordCommit = Invoke-ExternalCapture $script:GitExecutable @("-C", $VencordDirectory, "rev-parse", "HEAD")
-        pluginCommit = Invoke-ExternalCapture $script:GitExecutable @("-C", $PluginDirectory, "rev-parse", "HEAD")
+        distributionCommit = Invoke-ExternalCapture $script:GitExecutable @("-C", $DistributionDirectory, "rev-parse", "HEAD")
+        pluginsDigest = (Get-FileHash -LiteralPath $catalogPath -Algorithm SHA256).Hash.ToLowerInvariant()
     }
 
     $statePath = Join-Path $RootDirectory "manager-state.json"
@@ -1516,7 +1520,8 @@ function Main {
 
     $resolvedRoot = [IO.Path]::GetFullPath($InstallRoot)
     $vencordDirectory = Join-Path $resolvedRoot "Vencord"
-    $pluginDirectory = Join-Path $vencordDirectory "src\userplugins\randomFavorites"
+    $distributionDirectory = Join-Path $resolvedRoot "Distribution"
+    $catalogPath = Join-Path $distributionDirectory "catalog\plugins.json"
     $bootstrapDirectory = Join-Path $resolvedRoot ".bootstrap"
     $logsDirectory = Join-Path $resolvedRoot "logs"
     $script:ResolvedInstallRoot = $resolvedRoot
@@ -1546,7 +1551,7 @@ function Main {
     Write-TechnicalLog "Install root: $resolvedRoot"
     Write-TechnicalLog "Discord branch: $Branch"
     Write-TechnicalLog "Vencord repository: $VencordRepository"
-    Write-TechnicalLog "Plugin repository: $PluginRepository"
+    Write-TechnicalLog "Distribution repository: $DistributionRepository"
 
     Write-Host "  $(Get-UiText "Installation folder:" "Dossier d'installation :") $resolvedRoot" -ForegroundColor DarkGray
     Write-Host "  $(Get-UiText "Discord version:" "Version de Discord :") $Branch" -ForegroundColor DarkGray
@@ -1588,13 +1593,27 @@ function Main {
     Complete-Step $stageTimer
 
     $stageTimer = Write-Step 4 7 `
-        (Get-UiText "Updating RandomFavorites" "Mise a jour de RandomFavorites") `
-        (Get-UiText "Fetching the newest public version of the plugin." "Recuperation de la derniere version publique du plugin.")
-    $userPluginsDirectory = Split-Path -Parent $pluginDirectory
-    if (-not (Test-Path -LiteralPath $userPluginsDirectory)) {
-        New-Item -ItemType Directory -Path $userPluginsDirectory -Force | Out-Null
+        (Get-UiText "Updating Yuzuctus Vencord" "Mise a jour de Yuzuctus Vencord") `
+        (Get-UiText "Fetching the newest public distribution catalog." "Recuperation du catalogue public de la distribution.")
+    Update-Repository $DistributionRepository $distributionDirectory "Yuzuctus Vencord distribution"
+    $catalogPath = Join-Path $distributionDirectory "catalog\plugins.json"
+    if (-not (Test-Path -LiteralPath $catalogPath -PathType Leaf)) {
+        throw "The Yuzuctus Vencord distribution does not contain '$catalogPath'."
     }
-    Update-Repository $PluginRepository $pluginDirectory "RandomFavorites"
+    Update-TuiActivity `
+        (Get-UiText "Materializing catalog plugins..." "Preparation des plugins du catalogue...") `
+        -Progress 0.72 `
+        -Force
+    Invoke-External (Join-Path $PSHOME "powershell.exe") @(
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy", "Bypass",
+        "-File", (Join-Path $distributionDirectory "scripts\Materialize-Plugins.ps1"),
+        "-CatalogPath", $catalogPath,
+        "-SourceRoot", $distributionDirectory,
+        "-VencordDirectory", $vencordDirectory
+    )
     Complete-Step $stageTimer
 
     $stageTimer = Write-Step 5 7 `
@@ -1609,9 +1628,9 @@ function Main {
 
     $stageTimer = Write-Step 6 7 `
         (Get-UiText "Building the custom Discord mod" "Compilation du mod Discord personnalise") `
-        (Get-UiText "Creating Vencord with RandomFavorites included. This can take a moment." "Creation de Vencord avec RandomFavorites inclus. Cette etape peut prendre un moment.")
+        (Get-UiText "Creating Vencord with catalog plugins included. This can take a moment." "Creation de Vencord avec les plugins du catalogue. Cette etape peut prendre un moment.")
     Update-TuiActivity `
-        (Get-UiText "Compiling Vencord with RandomFavorites..." "Compilation de Vencord avec RandomFavorites...") `
+        (Get-UiText "Compiling Vencord with catalog plugins..." "Compilation de Vencord avec les plugins du catalogue...") `
         -Progress 0.05 `
         -Force
     Invoke-External $pnpm @("build") $vencordDirectory
@@ -1655,10 +1674,10 @@ function Main {
             -Force
     }
 
-    $updateLauncher = Join-Path $resolvedRoot "Update RandomFavorites.cmd"
+    $updateLauncher = Join-Path $resolvedRoot "Update Yuzuctus Vencord.cmd"
     Update-TuiActivity (Get-UiText "Saving the update shortcut..." "Enregistrement du raccourci de mise a jour...") -Progress 0.92 -Force
-    Write-UpdateLauncher $resolvedRoot $pluginDirectory
-    Write-State $resolvedRoot $vencordDirectory $pluginDirectory $Branch
+    Write-UpdateLauncher $resolvedRoot $distributionDirectory
+    Write-State $resolvedRoot $vencordDirectory $distributionDirectory $Branch
     Complete-Step $stageTimer
 
     $script:UpdateLauncherPath = $updateLauncher

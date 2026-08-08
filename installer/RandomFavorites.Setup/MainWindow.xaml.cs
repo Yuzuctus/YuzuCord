@@ -312,7 +312,7 @@ public partial class MainWindow : Window
         if (_openAsarInstalled && !_desiredOpenAsar)
             return "Sera supprimé lors de l'application des changements";
         if (!_openAsarInstalled && _desiredOpenAsar)
-            return "Sera installé avec RandomFavorites";
+            return "Sera installé avec Yuzuctus Vencord";
         if (_openAsarInstalled)
             return "Installé · démarrage de Discord plus rapide";
         return "Optionnel · démarrage de Discord plus rapide";
@@ -324,7 +324,7 @@ public partial class MainWindow : Window
         AvailableVencordText.Text = _availableManifest is null
             ? _inspectionWarning is null ? "Vérification…" : "Indisponible"
             : FormatBuild(_availableManifest.VencordCommit);
-        PluginVersionText.Text = _installedManifest?.Version ?? "Non installé";
+        PluginVersionText.Text = FormatPlugins(_installedManifest);
         AdvancedOpenAsarText.Text = _openAsarInstalled ? "Installé" : "Non installé";
         DiscordPathText.Text = SelectedDiscord?.RootPath ?? "Aucune installation sélectionnée";
     }
@@ -333,6 +333,14 @@ public partial class MainWindow : Window
         string.IsNullOrWhiteSpace(commit)
             ? "—"
             : $"Build {commit[..Math.Min(8, commit.Length)]}";
+
+    private static string FormatPlugins(BundleManifest? manifest)
+    {
+        if (manifest?.Plugins is { Length: > 0 } plugins)
+            return string.Join(", ", plugins.Select(plugin => plugin.DisplayName));
+
+        return manifest is null ? "Non installé" : "RandomFavorites (legacy)";
+    }
 
     private void AnnounceStatusIfChanged(string title)
     {
@@ -449,7 +457,7 @@ public partial class MainWindow : Window
                     var current = _result ?? new InstallResult(
                         true,
                         "Installation terminée",
-                        "RandomFavorites est prêt.");
+                        "Yuzuctus Vencord est prêt.");
                     _result = TryStartDiscord(discord, current);
                     ApplyViewState();
                 }
@@ -504,7 +512,7 @@ public partial class MainWindow : Window
         if (_isBusy || SelectedDiscord is null) return;
         var dialog = new ConfirmationDialog(
             "Réparer l'installation",
-            "La build Vencord et RandomFavorites sera téléchargée, vérifiée puis réappliquée. Vos réglages seront conservés. Discord sera fermé pendant l'opération.",
+            "La build Yuzuctus Vencord sera téléchargée, vérifiée puis réappliquée. Vos réglages seront conservés. Discord sera fermé pendant l'opération.",
             "Réparer")
         {
             Owner = this,
@@ -532,7 +540,7 @@ public partial class MainWindow : Window
             (discord, progress, token) => _installerService.UninstallAsync(
                 discord,
                 selection.Mode,
-                selection.RemoveRandomFavoritesSettings,
+                selection.RemoveManagedPluginSettings,
                 selection.RemoveOpenAsar,
                 progress,
                 token));

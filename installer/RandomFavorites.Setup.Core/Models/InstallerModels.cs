@@ -11,7 +11,7 @@ public enum DiscordBranch
 
 public enum UninstallMode
 {
-    RandomFavoritesOnly,
+    ManagedPluginsOnly,
     VencordKeepData,
     VencordRemoveData,
 }
@@ -38,13 +38,55 @@ public sealed record InstallerProgress(
     string Detail,
     bool IsIndeterminate = false);
 
+public sealed class PluginManifest
+{
+    public string Id { get; init; } = "";
+
+    public string DisplayName { get; init; } = "";
+
+    public string Repository { get; init; } = "";
+
+    public string Commit { get; init; } = "";
+
+    public string SourcePath { get; init; } = "";
+
+    public string Entrypoint { get; init; } = "";
+
+    public string[] Files { get; init; } = [];
+
+    public string SettingsKey { get; init; } = "";
+
+    public string License { get; init; } = "";
+
+    public string LicenseFile { get; init; } = "";
+
+    public string Maintainer { get; init; } = "";
+
+    public string Status { get; init; } = "";
+}
+
 public sealed class BundleManifest
 {
+    public int SchemaVersion { get; init; } = 1;
+
+    public string ProductId { get; init; } = "RandomFavorites";
+
+    public string ProductName { get; init; } = "RandomFavorites";
+
     public string Version { get; init; } = "";
+
+    public string VencordRepository { get; init; } = "";
 
     public string VencordCommit { get; init; } = "";
 
+    public string DistributionCommit { get; init; } = "";
+
+    // Kept so manifests from the first mono-plugin releases remain readable.
     public string PluginCommit { get; init; } = "";
+
+    public string PluginsDigest { get; init; } = "";
+
+    public PluginManifest[] Plugins { get; init; } = [];
 
     public string OpenAsarDigest { get; init; } = "";
 
@@ -57,7 +99,11 @@ public sealed class BundleManifest
 
 public sealed class InstallState
 {
+    public string ProductId { get; init; } = "";
+
     public string Version { get; init; } = "";
+
+    public string PluginsDigest { get; init; } = "";
 
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public DiscordBranch Branch { get; init; }
