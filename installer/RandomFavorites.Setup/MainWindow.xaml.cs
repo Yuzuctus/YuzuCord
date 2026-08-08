@@ -143,7 +143,9 @@ public partial class MainWindow : Window
         catch (Exception error)
         {
             _availableManifest = null;
-            _inspectionWarning = "La vérification en ligne est momentanément indisponible.";
+            _inspectionWarning = error is InvalidOperationException
+                ? error.Message
+                : "La vérification en ligne est momentanément indisponible.";
             AppendUiLog($"Vérification de la version disponible impossible : {error.Message}");
         }
 

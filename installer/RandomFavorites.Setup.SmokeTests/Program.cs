@@ -12,6 +12,8 @@ var tests = new (string Name, Action Run)[]
     ("checksum parser selects the requested release asset", TestNamedChecksumParser),
     ("downloaded bundle is moved only after its stream is released", TestDownloadReleasesFile),
     ("latest release metadata is read without downloading the bundle", TestLatestManifest),
+    ("preview selects the newest compatible YuzuCord release", TestPreviewReleaseResolution),
+    ("incomplete tagged release reports an actionable message", TestMissingReleaseAssetMessage),
     ("beta release URLs target the beta tag", TestBetaReleaseUrls),
     ("beta manifest versions are accepted", TestBetaManifestVersion),
     ("catalog manifests validate the YuzuCord identity", TestCatalogManifest),
@@ -79,7 +81,9 @@ static void TestDownloadReleasesFile()
 
     try
     {
-        using var client = new ReleaseClient(new StaticReleaseHandler(payload, hash));
+        using var client = new ReleaseClient(
+            new StaticReleaseHandler(payload, hash),
+            "v2-beta2");
         var bundle = client.DownloadVerifiedBundleAsync(
                 layout,
                 progress: null,
@@ -105,7 +109,7 @@ static void TestDownloadReleasesFile()
 static void TestLatestManifest()
 {
     var expected = CreateManifest("v3.2.1", 'c', 'd');
-    using var client = new ReleaseClient(new ManifestReleaseHandler(expected));
+    using var client = new ReleaseClient(new ManifestReleaseHandler(expected), "v3.2.1");
     var manifest = client.GetLatestManifestAsync(CancellationToken.None)
         .GetAwaiter()
         .GetResult();
@@ -113,6 +117,45 @@ static void TestLatestManifest()
     Assert(manifest.Version == expected.Version);
     Assert(manifest.PluginCommit == expected.PluginCommit);
     Assert(manifest.VencordCommit == expected.VencordCommit);
+}
+
+static void TestPreviewReleaseResolution()
+{
+    var expected = CreateCatalogManifest("v2-beta2", 'c', 'd');
+    var handler = new CompatibleReleaseHandler(expected);
+    using var client = new ReleaseClient(handler, "latest");
+    var manifest = client.GetLatestManifestAsync(CancellationToken.None)
+        .GetAwaiter()
+        .GetResult();
+    _ = client.GetLatestManifestAsync(CancellationToken.None)
+        .GetAwaiter()
+        .GetResult();
+
+    Assert(manifest.Version == "v2-beta2");
+    Assert(handler.ReleaseListRequestCount == 1);
+    Assert(handler.ManifestRequestUri?.AbsolutePath ==
+        "/Yuzuctus/YuzuCord/releases/download/v2-beta2/YuzuCordBundle.manifest.json");
+}
+
+static void TestMissingReleaseAssetMessage()
+{
+    using var client = new ReleaseClient(new MissingReleaseAssetHandler(), "v2-beta2");
+
+    try
+    {
+        _ = client.GetLatestManifestAsync(CancellationToken.None)
+            .GetAwaiter()
+            .GetResult();
+    }
+    catch (InvalidOperationException error)
+    {
+        Assert(error.Message.Contains("v2-beta2", StringComparison.OrdinalIgnoreCase));
+        Assert(error.Message.Contains("incomplète", StringComparison.OrdinalIgnoreCase));
+        Assert(!error.Message.Contains("Response status code", StringComparison.OrdinalIgnoreCase));
+        return;
+    }
+
+    throw new InvalidOperationException("Expected an actionable release error.");
 }
 
 static void TestBetaReleaseUrls()
@@ -808,4 +851,58 @@ sealed class ManifestReleaseHandler(BundleManifest manifest) : HttpMessageHandle
             Content = new StringContent(JsonSerializer.Serialize(manifest)),
         });
     }
+}
+
+sealed class CompatibleReleaseHandler(BundleManifest manifest) : HttpMessageHandler
+{
+    public Uri? ManifestRequestUri { get; private set; }
+    public int ReleaseListRequestCount { get; private set; }
+
+    protected override Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        if (request.RequestUri?.AbsolutePath == "/repos/Yuzuctus/YuzuCord/releases")
+        {
+            ReleaseListRequestCount++;
+            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent("""
+                    [
+                      {
+                        "tag_name": "v1.9.4",
+                        "draft": false,
+                        "assets": [
+                          { "name": "RandomFavoritesBundle.zip" }
+                        ]
+                      },
+                      {
+                        "tag_name": "v2-beta2",
+                        "draft": false,
+                        "prerelease": true,
+                        "assets": [
+                          { "name": "YuzuCordBundle.zip" },
+                          { "name": "YuzuCordBundle.zip.sha256" },
+                          { "name": "YuzuCordBundle.manifest.json" }
+                        ]
+                      }
+                    ]
+                    """),
+            });
+        }
+
+        ManifestRequestUri = request.RequestUri;
+        return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        {
+            Content = new StringContent(JsonSerializer.Serialize(manifest)),
+        });
+    }
+}
+
+sealed class MissingReleaseAssetHandler : HttpMessageHandler
+{
+    protected override Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.NotFound));
 }

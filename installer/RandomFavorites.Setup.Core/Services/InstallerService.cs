@@ -425,7 +425,7 @@ public sealed class InstallerService : IDisposable
         }
         catch (Exception error)
         {
-            WriteLog($"Échec : {error}");
+            WriteLog($"Échec : {error.Message}");
             return new InstallResult(false, "L'installation a échoué", error.Message);
         }
         finally
