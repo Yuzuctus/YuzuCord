@@ -60,6 +60,8 @@ vencord/src/userplugins/<pluginId>
 Le script `scripts/Materialize-Plugins.ps1` lit le catalogue et copie chaque plugin dans son propre dossier.
 Le pipeline beta exécute ensuite les tests, ESLint, le typecheck et le build Vencord.
 
+Pour reprendre l'architecture et le travail avec une autre IA, lire `V2_HANDOFF.md`.
+
 ## Sécurité et licences
 
 - aucun token Discord n'est lu, stocké ou transmis par cette distribution ;
