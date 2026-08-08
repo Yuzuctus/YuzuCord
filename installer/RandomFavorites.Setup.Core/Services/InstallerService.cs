@@ -414,8 +414,8 @@ public sealed class InstallerService : IDisposable
                 true,
                 "YuzuCord est installé",
                 installOpenAsar
-                    ? "OpenAsar utilise la dernière release officielle. YuzuCord peut maintenant être utilisé dans Discord."
-                    : "YuzuCord peut maintenant être utilisé dans Discord.",
+                    ? $"YuzuCord {manifest.Version} et OpenAsar sont prêts."
+                    : $"YuzuCord {manifest.Version} est prêt.",
                 manifest.Version);
         }
         catch (OperationCanceledException)

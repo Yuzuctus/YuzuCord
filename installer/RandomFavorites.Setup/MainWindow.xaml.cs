@@ -221,7 +221,7 @@ public partial class MainWindow : Window
         ApplyStatusIcon(state.Icon);
         ApplyPrimaryActionIcon(state.PrimaryAction);
 
-        OperationProgress.Visibility = state.ShowProgress
+        OperationPanel.Visibility = state.ShowProgress
             ? Visibility.Visible
             : Visibility.Collapsed;
         OperationProgress.IsIndeterminate = state.IsProgressIndeterminate
@@ -233,11 +233,29 @@ public partial class MainWindow : Window
                 : state.ProgressPercent;
         }
 
-        CancelOperationButton.Visibility = _isBusy
-            ? Visibility.Visible
-            : Visibility.Collapsed;
         CancelOperationButton.IsEnabled = _operationCancellation is not null
             && !_operationCancellation.IsCancellationRequested;
+
+        var showPrimaryAction = !_isBusy
+            && state.PrimaryAction != InstallerPrimaryAction.None;
+        var showContext = showPrimaryAction
+            && state.Status != InstallerScreenStatus.Success
+            && !string.IsNullOrWhiteSpace(state.ContextText);
+        PrimaryActionButton.Visibility = showPrimaryAction
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        ContextText.Visibility = showContext
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        ActionPanel.Visibility = showPrimaryAction
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        PreferencesDivider.Visibility = _isBusy
+            ? Visibility.Collapsed
+            : Visibility.Visible;
+        OpenAsarPanel.Visibility = _isBusy
+            ? Visibility.Collapsed
+            : Visibility.Visible;
 
         var hasDiscord = SelectedDiscord is not null;
         DiscordBranchCombo.IsEnabled = !_isBusy && DiscordBranchCombo.Items.Count > 0;

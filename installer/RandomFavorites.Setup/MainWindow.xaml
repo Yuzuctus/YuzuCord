@@ -3,10 +3,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="YuzuCord"
         Icon="Assets/RandomFavorites.ico"
-        Width="880"
-        Height="620"
-        MinWidth="760"
-        MinHeight="560"
+        Width="680"
+        Height="480"
+        MinWidth="600"
+        MinHeight="450"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
         ResizeMode="CanResize"
@@ -93,18 +93,13 @@
                     Background="{StaticResource BorderSubtle}" />
 
             <Grid Grid.Row="1">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="1.7*" MinWidth="490" />
-                    <ColumnDefinition Width="1*" MinWidth="245" />
-                </Grid.ColumnDefinitions>
-
                 <!-- The work area: few containers, one obvious action. -->
-                <ScrollViewer x:Name="MainScrollViewer" Grid.Column="0"
+                <ScrollViewer x:Name="MainScrollViewer"
                               VerticalScrollBarVisibility="Hidden"
                               HorizontalScrollBarVisibility="Disabled"
                               PanningMode="VerticalOnly"
                               Focusable="False">
-                    <StackPanel Margin="40,28,36,24" MaxWidth="530">
+                    <StackPanel Margin="40,28,40,24" MaxWidth="600">
                         <TextBlock Text="INSTALLATEUR" Style="{StaticResource EyebrowText}" />
                         <TextBlock Text="Installer YuzuCord" Style="{StaticResource PageTitle}"
                                    Margin="0,6,0,0" />
@@ -157,16 +152,27 @@
                             </Grid>
                         </Border>
 
-                        <ProgressBar x:Name="OperationProgress" Margin="0,14,0,0"
-                                     Minimum="0" Maximum="100" Value="0"
-                                     Visibility="Collapsed"
-                                     AutomationProperties.LiveSetting="Polite"
-                                     AutomationProperties.Name="Progression de l'installation" />
+                        <Grid x:Name="OperationPanel" Margin="0,14,0,0"
+                              Visibility="Collapsed">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ProgressBar x:Name="OperationProgress"
+                                         Minimum="0" Maximum="100" Value="0"
+                                         VerticalAlignment="Center"
+                                         AutomationProperties.LiveSetting="Polite"
+                                         AutomationProperties.Name="Progression de l'installation" />
+                            <Button x:Name="CancelOperationButton" Grid.Column="1"
+                                    Content="_Annuler" Style="{StaticResource QuietButton}"
+                                    Margin="12,0,-12,0" VerticalAlignment="Center"
+                                    Click="CancelOperationButton_OnClick" />
+                        </Grid>
 
-                        <Border Margin="0,22,0,0" Height="1"
+                        <Border x:Name="PreferencesDivider" Margin="0,22,0,0" Height="1"
                                 Background="{StaticResource BorderSubtle}" />
 
-                        <Grid Margin="0,18,0,0">
+                        <Grid x:Name="OpenAsarPanel" Margin="0,18,0,0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
@@ -188,14 +194,10 @@
                                           Unchecked="OpenAsarToggle_OnChanged" />
                         </Grid>
 
-                        <Grid Margin="0,24,0,0">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
+                        <StackPanel x:Name="ActionPanel" Margin="0,24,0,0">
                             <Button x:Name="PrimaryActionButton"
                                     MinWidth="196" Style="{StaticResource PrimaryButton}"
+                                    HorizontalAlignment="Left"
                                     IsDefault="True"
                                     AutomationProperties.Name="Installer YuzuCord"
                                     Click="PrimaryActionButton_OnClick">
@@ -210,17 +212,13 @@
                                                 FontSize="15" FontWeight="SemiBold" />
                                 </StackPanel>
                             </Button>
-                            <TextBlock x:Name="ContextText" Grid.Column="1"
+                            <TextBlock x:Name="ContextText"
                                        Text="Discord sera fermé pendant l'installation."
                                        Style="{StaticResource QuietText}"
-                                       Margin="16,0,8,0" VerticalAlignment="Center"
+                                       Margin="0,8,0,0"
                                        TextWrapping="Wrap"
                                        AutomationProperties.LiveSetting="Polite" />
-                            <Button x:Name="CancelOperationButton" Grid.Column="2" Content="_Annuler"
-                                    Style="{StaticResource QuietButton}"
-                                    Visibility="Collapsed" VerticalAlignment="Center"
-                                    Click="CancelOperationButton_OnClick" />
-                        </Grid>
+                        </StackPanel>
 
                         <Border x:Name="AdvancedPanel" Margin="0,24,0,0" Padding="0,18,0,0"
                                 Visibility="Collapsed" BorderBrush="{StaticResource BorderSubtle}"
@@ -276,21 +274,6 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <!-- Brand signature: one deliberate illustration, never behind text. -->
-                <Border Grid.Column="1" Background="{StaticResource ArtworkSurface}"
-                        BorderBrush="{StaticResource BorderSubtle}" BorderThickness="1,0,0,0">
-                    <Grid ClipToBounds="True">
-                        <Image Width="390" Margin="-55,62,-60,-48"
-                               HorizontalAlignment="Center" VerticalAlignment="Bottom"
-                               Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"
-                               IsHitTestVisible="False">
-                            <Image.Source>
-                                <BitmapImage UriSource="Assets/Artwork/YuzuChibiHello.png"
-                                             DecodePixelWidth="520" CacheOption="OnLoad" />
-                            </Image.Source>
-                        </Image>
-                    </Grid>
-                </Border>
             </Grid>
 
             <Border Grid.Row="2" BorderBrush="{StaticResource BorderSubtle}"
