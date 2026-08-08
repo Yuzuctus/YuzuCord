@@ -13,12 +13,16 @@ param(
     [ValidatePattern("^v(?:[0-9]+\.[0-9]+\.[0-9]+(?:-beta\.[0-9]+)?|[0-9]+-beta[0-9]+)$")]
     [string]$Version,
 
-    [string]$CatalogPath
+    [string]$CatalogPath,
+
+    [switch]$AllowDirtySources
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
+
+Import-Module (Join-Path $PSScriptRoot "PluginCatalog.psm1") -Force
 
 function Resolve-ExistingDirectory {
     param([string]$Path, [string]$DisplayName)
@@ -57,122 +61,21 @@ function Get-GitRemote {
     return $remote.Trim()
 }
 
-function Get-Sha256Text {
-    param([string]$Text)
+function Assert-GitClean {
+    param([string]$RepositoryDirectory, [string]$DisplayName)
 
-    $algorithm = [Security.Cryptography.SHA256]::Create()
-    try {
-        $bytes = [Text.Encoding]::UTF8.GetBytes($Text)
-        $hash = $algorithm.ComputeHash($bytes)
-        return (($hash | ForEach-Object { $_.ToString("x2") }) -join "")
-    } finally {
-        $algorithm.Dispose()
+    if ($AllowDirtySources) { return }
+
+    $status = & git -C $RepositoryDirectory status --porcelain=v1 --untracked-files=all
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not inspect the Git status for '$RepositoryDirectory'."
+    }
+    if (-not [string]::IsNullOrWhiteSpace(($status -join "`n"))) {
+        throw "$DisplayName contains uncommitted files. Release manifests must describe an exact source commit."
     }
 }
 
-function Assert-RelativePath {
-    param(
-        [string]$Path,
-        [string]$DisplayName
-    )
-
-    if ([string]::IsNullOrWhiteSpace($Path) `
-        -or [IO.Path]::IsPathRooted($Path) `
-        -or $Path -match '(^|[\\/])\.\.([\\/]|$)') {
-        throw "$DisplayName must be a safe relative path: '$Path'."
-    }
-}
-
-function Read-PluginCatalog {
-    param(
-        [string]$Path,
-        [string]$DistributionRoot
-    )
-
-    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
-        throw "Plugin catalog was not found at '$Path'."
-    }
-
-    $catalog = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
-    if ([int]$catalog.schemaVersion -ne 1) {
-        throw "Unsupported plugin catalog schema version '$($catalog.schemaVersion)'."
-    }
-
-    $plugins = @($catalog.plugins)
-    if ($plugins.Count -eq 0) {
-        throw "The plugin catalog does not contain any plugin."
-    }
-
-    $commit = Get-GitCommit $DistributionRoot
-    $seenIds = @{}
-    $entries = foreach ($plugin in $plugins) {
-        $id = [string]$plugin.id
-        if ($id -notmatch '^[a-z][A-Za-z0-9]*$') {
-            throw "Plugin id '$id' is invalid."
-        }
-        if ($seenIds.ContainsKey($id)) {
-            throw "Plugin id '$id' appears more than once in the catalog."
-        }
-        $seenIds[$id] = $true
-
-        $sourcePath = [string]$plugin.sourcePath
-        Assert-RelativePath $sourcePath "Plugin '$id' sourcePath"
-        $sourceRoot = [IO.Path]::GetFullPath((Join-Path $DistributionRoot $sourcePath))
-        if (-not (Test-Path -LiteralPath $sourceRoot -PathType Container)) {
-            throw "Plugin '$id' sourcePath was not found at '$sourceRoot'."
-        }
-
-        $files = @($plugin.files)
-        if ($files.Count -eq 0) {
-            throw "Plugin '$id' does not declare any source files."
-        }
-        foreach ($file in $files) {
-            Assert-RelativePath ([string]$file) "Plugin '$id' source file"
-        }
-
-        $entrypoint = [string]$plugin.entrypoint
-        Assert-RelativePath $entrypoint "Plugin '$id' entrypoint"
-        if (-not (Test-Path -LiteralPath (Join-Path $sourceRoot $entrypoint) -PathType Leaf)) {
-            throw "Plugin '$id' entrypoint was not found at '$sourceRoot\$entrypoint'."
-        }
-
-        $licenseFile = [string]$plugin.licenseFile
-        Assert-RelativePath $licenseFile "Plugin '$id' licenseFile"
-        if (-not (Test-Path -LiteralPath (Join-Path $sourceRoot $licenseFile) -PathType Leaf)) {
-            throw "Plugin '$id' licenseFile was not found at '$sourceRoot\$licenseFile'."
-        }
-        if ([string]::IsNullOrWhiteSpace([string]$plugin.displayName) `
-            -or [string]::IsNullOrWhiteSpace([string]$plugin.repository) `
-            -or [string]::IsNullOrWhiteSpace([string]$plugin.license)) {
-            throw "Plugin '$id' is missing displayName, repository, or license metadata."
-        }
-
-        [ordered]@{
-            id = $id
-            displayName = [string]$plugin.displayName
-            repository = [string]$plugin.repository
-            commit = $commit
-            sourcePath = $sourcePath
-            entrypoint = $entrypoint
-            files = @($files | ForEach-Object { [string]$_ })
-            settingsKey = [string]$plugin.settingsKey
-            license = [string]$plugin.license
-            licenseFile = $licenseFile
-            maintainer = [string]$plugin.maintainer
-            status = [string]$plugin.status
-        }
-    }
-
-    $entryArray = @($entries)
-    $canonical = ConvertTo-Json -InputObject $entryArray -Depth 8 -Compress
-    return [PSCustomObject]@{
-        Entries = $entryArray
-        Digest = Get-Sha256Text $canonical
-        DistributionCommit = $commit
-    }
-}
-
-$distributionRoot = Resolve-ExistingDirectory $DistributionDirectory "Yuzuctus Vencord distribution"
+$distributionRoot = Resolve-ExistingDirectory $DistributionDirectory "YuzuCord distribution"
 $vencordRoot = Resolve-ExistingDirectory $VencordDirectory "Vencord"
 $outputRoot = [IO.Path]::GetFullPath($OutputDirectory)
 $catalogFile = if ([string]::IsNullOrWhiteSpace($CatalogPath)) {
@@ -180,7 +83,12 @@ $catalogFile = if ([string]::IsNullOrWhiteSpace($CatalogPath)) {
 } else {
     $CatalogPath
 }
-$catalogInfo = Read-PluginCatalog $catalogFile $distributionRoot
+Assert-GitClean $distributionRoot "YuzuCord distribution"
+Assert-GitClean $vencordRoot "Vencord"
+$catalogInfo = Invoke-YuzuctusPluginMaterialization `
+    -CatalogPath $catalogFile `
+    -SourceRoot $distributionRoot `
+    -VencordDirectory $vencordRoot
 $vencordCommit = Get-GitCommit $vencordRoot
 $vencordRepository = Get-GitRemote $vencordRoot
 $stagingRoot = Join-Path $outputRoot (".bundle-" + [Guid]::NewGuid().ToString("N"))
@@ -188,7 +96,7 @@ $distRoot = Join-Path $stagingRoot "dist"
 $toolsRoot = Join-Path $stagingRoot "tools"
 $licensesRoot = Join-Path $stagingRoot "licenses"
 $catalogRoot = Join-Path $stagingRoot "catalog"
-$bundlePath = Join-Path $outputRoot "YuzuctusVencordBundle.zip"
+$bundlePath = Join-Path $outputRoot "YuzuCordBundle.zip"
 
 New-Item -ItemType Directory -Force -Path $outputRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $distRoot, $toolsRoot, $licensesRoot, $catalogRoot | Out-Null
@@ -196,7 +104,7 @@ New-Item -ItemType Directory -Force -Path $distRoot, $toolsRoot, $licensesRoot, 
 try {
     $openAsarRelease = Invoke-RestMethod `
         -Uri "https://api.github.com/repos/GooseMod/OpenAsar/releases/tags/nightly" `
-        -Headers @{ "User-Agent" = "YuzuctusVencordReleaseBuilder" }
+        -Headers @{ "User-Agent" = "YuzuCordReleaseBuilder" }
     $openAsarAsset = $openAsarRelease.assets |
         Where-Object { $_.name -eq "app.asar" } |
         Select-Object -First 1
@@ -273,31 +181,39 @@ try {
         -Destination (Join-Path $licensesRoot "Vencord-LICENSE")
     Copy-Item `
         -LiteralPath (Join-Path $distributionRoot "LICENSE") `
-        -Destination (Join-Path $licensesRoot "YuzuctusVencord-LICENSE")
+        -Destination (Join-Path $licensesRoot "YuzuCord-LICENSE")
     Copy-Item `
         -LiteralPath (Join-Path $distributionRoot "installer\THIRD_PARTY_NOTICES.md") `
         -Destination $stagingRoot
     Copy-Item -LiteralPath $catalogFile -Destination (Join-Path $catalogRoot "plugins.json")
+    Copy-Item `
+        -LiteralPath (Join-Path $distributionRoot "catalog\plugins.schema.json") `
+        -Destination (Join-Path $catalogRoot "plugins.schema.json")
 
-    foreach ($plugin in $catalogInfo.Entries) {
-        $pluginSourceRoot = Join-Path $distributionRoot $plugin.sourcePath
-        $declaredLicense = Join-Path $pluginSourceRoot $plugin.licenseFile
-        if (Test-Path -LiteralPath $declaredLicense -PathType Leaf) {
-            Copy-Item -LiteralPath $declaredLicense -Destination (Join-Path $licensesRoot "$($plugin.id)-LICENSE")
+    foreach ($plugin in $catalogInfo.plugins) {
+        $declaredLicense = Join-Path `
+            (Join-Path $vencordRoot "src\userplugins\$($plugin.id)") `
+            $plugin.licenseFile
+        if (-not (Test-Path -LiteralPath $declaredLicense -PathType Leaf)) {
+            throw "The resolved license for plugin '$($plugin.id)' is missing."
         }
+        Copy-Item `
+            -LiteralPath $declaredLicense `
+            -Destination (Join-Path $licensesRoot "$($plugin.id)-LICENSE")
     }
 
     $manifest = [ordered]@{
-        schemaVersion = 2
+        schemaVersion = 3
         productId = "YuzuctusVencord"
-        productName = "Yuzuctus Vencord"
+        productName = "YuzuCord"
         version = $Version
         vencordRepository = $vencordRepository
         vencordCommit = $vencordCommit
-        distributionCommit = $catalogInfo.DistributionCommit
-        pluginCommit = $catalogInfo.DistributionCommit
-        pluginsDigest = $catalogInfo.Digest
-        plugins = @($catalogInfo.Entries)
+        distributionCommit = $catalogInfo.distributionCommit
+        pluginCommit = $catalogInfo.distributionCommit
+        catalogSchemaVersion = $catalogInfo.catalogSchemaVersion
+        pluginsDigest = $catalogInfo.pluginsDigest
+        plugins = @($catalogInfo.plugins)
         openAsarDigest = $openAsarAsset.digest.ToLowerInvariant()
         openAsarPublishedAtUtc = $openAsarPublishedAt.ToUniversalTime().ToString("o")
         builtAtUtc = [DateTimeOffset]::UtcNow.ToString("o")
@@ -314,7 +230,7 @@ try {
         Set-Content -LiteralPath $manifestPath -Encoding utf8
     Copy-Item `
         -LiteralPath $manifestPath `
-        -Destination (Join-Path $outputRoot "YuzuctusVencordBundle.manifest.json") `
+        -Destination (Join-Path $outputRoot "YuzuCordBundle.manifest.json") `
         -Force
 
     Compress-Archive `
@@ -323,12 +239,12 @@ try {
         -CompressionLevel Optimal `
         -Force
     $bundleHash = (Get-FileHash -LiteralPath $bundlePath -Algorithm SHA256).Hash.ToLowerInvariant()
-    "$bundleHash  YuzuctusVencordBundle.zip" |
+    "$bundleHash  YuzuCordBundle.zip" |
         Set-Content -LiteralPath "$bundlePath.sha256" -Encoding ascii -NoNewline
 
     Write-Host "Built $bundlePath"
     Write-Host "Vencord commit: $($manifest.vencordCommit)"
-    Write-Host "Plugin catalog digest: $($manifest.pluginsDigest)"
+    Write-Host "Resolved plugins digest: $($manifest.pluginsDigest)"
     Write-Host "OpenAsar digest: $($manifest.openAsarDigest)"
 } finally {
     $resolvedStaging = [IO.Path]::GetFullPath($stagingRoot)

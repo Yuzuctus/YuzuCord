@@ -48,13 +48,26 @@ public sealed class PluginManifest
 
     public string Commit { get; init; } = "";
 
+    // Present only in legacy schema-2 manifests.
     public string SourcePath { get; init; } = "";
+
+    public string SourceType { get; init; } = "";
+
+    public string SourceDigest { get; init; } = "";
 
     public string Entrypoint { get; init; } = "";
 
     public string[] Files { get; init; } = [];
 
     public string SettingsKey { get; init; } = "";
+
+    public string Provenance { get; init; } = "";
+
+    public string[] DistributionTags { get; init; } = [];
+
+    public string[] Dependencies { get; init; } = [];
+
+    public string[] Conflicts { get; init; } = [];
 
     public string License { get; init; } = "";
 
@@ -69,9 +82,9 @@ public sealed class BundleManifest
 {
     public int SchemaVersion { get; init; } = 1;
 
-    public string ProductId { get; init; } = "RandomFavorites";
+    public string ProductId { get; init; } = "YuzuctusVencord";
 
-    public string ProductName { get; init; } = "RandomFavorites";
+    public string ProductName { get; init; } = "YuzuCord";
 
     public string Version { get; init; } = "";
 
@@ -80,6 +93,8 @@ public sealed class BundleManifest
     public string VencordCommit { get; init; } = "";
 
     public string DistributionCommit { get; init; } = "";
+
+    public int CatalogSchemaVersion { get; init; }
 
     // Kept so manifests from the first mono-plugin releases remain readable.
     public string PluginCommit { get; init; } = "";

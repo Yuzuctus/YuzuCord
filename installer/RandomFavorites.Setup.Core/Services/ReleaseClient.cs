@@ -11,12 +11,8 @@ namespace RandomFavorites.Setup.Core.Services;
 
 public sealed class ReleaseClient : IDisposable
 {
-    public const string BundleUrl =
-        "https://github.com/Yuzuctus/RandomFavorites/releases/latest/download/YuzuctusVencordBundle.zip";
-    public const string ChecksumUrl =
-        "https://github.com/Yuzuctus/RandomFavorites/releases/latest/download/YuzuctusVencordBundle.zip.sha256";
-    public const string ManifestUrl =
-        "https://github.com/Yuzuctus/RandomFavorites/releases/latest/download/YuzuctusVencordBundle.manifest.json";
+    public const string ReleasesApiUrl =
+        "https://api.github.com/repos/Yuzuctus/YuzuCord/releases?per_page=30";
     public const string OfficialInstallerUrl =
         "https://github.com/Vencord/Installer/releases/latest/download/VencordInstallerCli.exe";
     public const string OfficialInstallerChecksumUrl =
@@ -24,30 +20,26 @@ public sealed class ReleaseClient : IDisposable
     public const string OpenAsarReleaseApiUrl =
         "https://api.github.com/repos/GooseMod/OpenAsar/releases/tags/nightly";
     private const string ReleaseDownloadBaseUrl =
-        "https://github.com/Yuzuctus/RandomFavorites/releases/download";
+        "https://github.com/Yuzuctus/YuzuCord/releases/download";
+    private static readonly string[] RequiredReleaseAssets =
+    [
+        "YuzuCordBundle.zip",
+        "YuzuCordBundle.zip.sha256",
+        "YuzuCordBundle.manifest.json",
+    ];
 
     private readonly HttpClient _httpClient;
-    private readonly string _bundleUrl;
-    private readonly string _checksumUrl;
-    private readonly string _manifestUrl;
+    private readonly string? _releaseTag;
+    private string? _resolvedReleaseTag;
 
     public ReleaseClient(HttpMessageHandler? handler = null, string? releaseTag = null)
     {
         _httpClient = handler is null ? new HttpClient() : new HttpClient(handler);
         _httpClient.DefaultRequestHeaders.UserAgent.Add(
-            new ProductInfoHeaderValue("YuzuctusVencordSetup", "2.0"));
+            new ProductInfoHeaderValue("YuzuCordSetup", "2.0"));
         _httpClient.Timeout = TimeSpan.FromMinutes(15);
 
-        var selectedReleaseTag = releaseTag ?? ReadBuildReleaseTag();
-        _bundleUrl = BuildReleaseAssetUrl(selectedReleaseTag, BundleUrl, "YuzuctusVencordBundle.zip");
-        _checksumUrl = BuildReleaseAssetUrl(
-            selectedReleaseTag,
-            ChecksumUrl,
-            "YuzuctusVencordBundle.zip.sha256");
-        _manifestUrl = BuildReleaseAssetUrl(
-            selectedReleaseTag,
-            ManifestUrl,
-            "YuzuctusVencordBundle.manifest.json");
+        _releaseTag = NormalizeReleaseTag(releaseTag ?? ReadBuildReleaseTag());
     }
 
     public async Task<string> DownloadVerifiedBundleAsync(
@@ -56,15 +48,21 @@ public sealed class ReleaseClient : IDisposable
         CancellationToken cancellationToken)
     {
         layout.EnsureDirectories();
-        var bundlePath = Path.Combine(layout.Downloads, "YuzuctusVencordBundle.zip");
-        var checksum = ParseSha256(await _httpClient.GetStringAsync(_checksumUrl, cancellationToken));
+        var release = await ResolveReleaseAssetsAsync(cancellationToken);
+        var bundlePath = Path.Combine(layout.Downloads, "YuzuCordBundle.zip");
+        var checksum = ParseSha256(await GetRequiredReleaseTextAsync(
+            release.ChecksumUrl,
+            release.Tag,
+            "YuzuCordBundle.zip.sha256",
+            cancellationToken));
 
         await DownloadFileWithRetriesAsync(
-            _bundleUrl,
+            release.BundleUrl,
             bundlePath,
-            "Téléchargement de Yuzuctus Vencord",
+            "Téléchargement de YuzuCord",
             progress,
-            cancellationToken);
+            cancellationToken,
+            notFoundMessage: BuildMissingAssetMessage(release.Tag, "YuzuCordBundle.zip"));
 
         progress?.Report(new InstallerProgress(
             0.48,
@@ -85,8 +83,12 @@ public sealed class ReleaseClient : IDisposable
     public async Task<BundleManifest> GetLatestManifestAsync(
         CancellationToken cancellationToken)
     {
-        using var response = await _httpClient.GetAsync(_manifestUrl, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        var release = await ResolveReleaseAssetsAsync(cancellationToken);
+        using var response = await GetRequiredReleaseResponseAsync(
+            release.ManifestUrl,
+            release.Tag,
+            "YuzuCordBundle.manifest.json",
+            cancellationToken);
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         var manifest = await JsonSerializer.DeserializeAsync<BundleManifest>(
             stream,
@@ -240,7 +242,8 @@ public sealed class ReleaseClient : IDisposable
         IProgress<InstallerProgress>? progress,
         CancellationToken cancellationToken,
         double startPercent = 0.08,
-        double endPercent = 0.44)
+        double endPercent = 0.44,
+        string? notFoundMessage = null)
     {
         Exception? lastError = null;
         for (var attempt = 1; attempt <= 3; attempt++)
@@ -254,10 +257,12 @@ public sealed class ReleaseClient : IDisposable
                     progress,
                     cancellationToken,
                     startPercent,
-                    endPercent);
+                    endPercent,
+                    notFoundMessage);
                 return;
             }
-            catch (Exception error) when (error is not OperationCanceledException && attempt < 3)
+            catch (Exception error) when (error is not (OperationCanceledException or InvalidOperationException)
+                                          && attempt < 3)
             {
                 lastError = error;
                 progress?.Report(new InstallerProgress(
@@ -279,7 +284,8 @@ public sealed class ReleaseClient : IDisposable
         IProgress<InstallerProgress>? progress,
         CancellationToken cancellationToken,
         double startPercent,
-        double endPercent)
+        double endPercent,
+        string? notFoundMessage)
     {
         var partPath = destination + ".part";
         if (File.Exists(partPath)) File.Delete(partPath);
@@ -288,6 +294,11 @@ public sealed class ReleaseClient : IDisposable
             url,
             HttpCompletionOption.ResponseHeadersRead,
             cancellationToken);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound
+            && notFoundMessage is not null)
+        {
+            throw new InvalidOperationException(notFoundMessage);
+        }
         response.EnsureSuccessStatusCode();
 
         var totalBytes = response.Content.Headers.ContentLength;
@@ -345,33 +356,139 @@ public sealed class ReleaseClient : IDisposable
     {
         return Assembly.GetEntryAssembly()?
             .GetCustomAttributes<AssemblyMetadataAttribute>()
-            .FirstOrDefault(attribute => attribute.Key == "YuzuctusVencordReleaseTag")?.Value
+            .FirstOrDefault(attribute => attribute.Key == "YuzuCordReleaseTag")?.Value
+            ?? Assembly.GetEntryAssembly()?
+                .GetCustomAttributes<AssemblyMetadataAttribute>()
+                .FirstOrDefault(attribute => attribute.Key == "YuzuctusVencordReleaseTag")?.Value
             ?? Assembly.GetEntryAssembly()?
                 .GetCustomAttributes<AssemblyMetadataAttribute>()
                 .FirstOrDefault(attribute => attribute.Key == "RandomFavoritesReleaseTag")?.Value;
     }
 
-    private static string BuildReleaseAssetUrl(
-        string? releaseTag,
-        string latestUrl,
-        string assetName)
+    private async Task<ReleaseAssets> ResolveReleaseAssetsAsync(
+        CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(releaseTag)
-            || releaseTag.Equals("latest", StringComparison.OrdinalIgnoreCase))
+        var selectedTag = _releaseTag ?? Volatile.Read(ref _resolvedReleaseTag);
+        if (selectedTag is not null)
+            return BuildReleaseAssets(selectedTag);
+
+        using var response = await _httpClient.GetAsync(ReleasesApiUrl, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        var releases = await JsonSerializer.DeserializeAsync<GitHubRelease[]>(
+            stream,
+            cancellationToken: cancellationToken)
+            ?? throw new InvalidDataException("La liste des releases YuzuCord est illisible.");
+        var compatibleRelease = releases.FirstOrDefault(release =>
+            release.Draft != true
+            && IsValidReleaseTag(release.TagName)
+            && RequiredReleaseAssets.All(requiredAsset =>
+                release.Assets?.Any(asset => string.Equals(
+                    asset.Name,
+                    requiredAsset,
+                    StringComparison.OrdinalIgnoreCase)) == true));
+
+        if (compatibleRelease?.TagName is not { } compatibleTag)
         {
-            return latestUrl;
+            throw new InvalidOperationException(
+                "Aucune release YuzuCord installable n'est disponible sur GitHub. "
+                + "Télécharge une beta contenant les fichiers YuzuCordBundle.");
         }
 
-        if (!Regex.IsMatch(
-                releaseTag,
-                "^v(?:[0-9]+\\.[0-9]+\\.[0-9]+(?:-beta\\.[0-9]+)?|[0-9]+-beta[0-9]+)$"))
-            throw new ArgumentException("Le tag de release Yuzuctus Vencord est invalide.", nameof(releaseTag));
-
-        return $"{ReleaseDownloadBaseUrl}/{releaseTag}/{assetName}";
+        selectedTag = Interlocked.CompareExchange(
+            ref _resolvedReleaseTag,
+            compatibleTag,
+            comparand: null) ?? compatibleTag;
+        return BuildReleaseAssets(selectedTag);
     }
+
+    private async Task<string> GetRequiredReleaseTextAsync(
+        string url,
+        string releaseTag,
+        string assetName,
+        CancellationToken cancellationToken)
+    {
+        using var response = await GetRequiredReleaseResponseAsync(
+            url,
+            releaseTag,
+            assetName,
+            cancellationToken);
+        return await response.Content.ReadAsStringAsync(cancellationToken);
+    }
+
+    private async Task<HttpResponseMessage> GetRequiredReleaseResponseAsync(
+        string url,
+        string releaseTag,
+        string assetName,
+        CancellationToken cancellationToken)
+    {
+        var response = await _httpClient.GetAsync(url, cancellationToken);
+        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        {
+            response.Dispose();
+            throw new InvalidOperationException(BuildMissingAssetMessage(releaseTag, assetName));
+        }
+
+        try
+        {
+            response.EnsureSuccessStatusCode();
+            return response;
+        }
+        catch
+        {
+            response.Dispose();
+            throw;
+        }
+    }
+
+    private static string? NormalizeReleaseTag(string? releaseTag)
+    {
+        if (string.IsNullOrWhiteSpace(releaseTag)
+            || releaseTag.Equals("latest", StringComparison.OrdinalIgnoreCase)
+            || releaseTag.Equals("preview", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        if (!IsValidReleaseTag(releaseTag))
+            throw new ArgumentException("Le tag de release YuzuCord est invalide.", nameof(releaseTag));
+
+        return releaseTag;
+    }
+
+    private static bool IsValidReleaseTag(string? releaseTag) =>
+        !string.IsNullOrWhiteSpace(releaseTag)
+        && Regex.IsMatch(
+            releaseTag,
+            "^v(?:[0-9]+\\.[0-9]+\\.[0-9]+(?:-beta\\.[0-9]+)?|[0-9]+-beta[0-9]+)$");
+
+    private static ReleaseAssets BuildReleaseAssets(string releaseTag) => new(
+        releaseTag,
+        BuildReleaseAssetUrl(releaseTag, "YuzuCordBundle.zip"),
+        BuildReleaseAssetUrl(releaseTag, "YuzuCordBundle.zip.sha256"),
+        BuildReleaseAssetUrl(releaseTag, "YuzuCordBundle.manifest.json"));
+
+    private static string BuildReleaseAssetUrl(string releaseTag, string assetName) =>
+        $"{ReleaseDownloadBaseUrl}/{releaseTag}/{assetName}";
+
+    private static string BuildMissingAssetMessage(string releaseTag, string assetName) =>
+        $"La release YuzuCord {releaseTag} est incomplète : {assetName} est introuvable. "
+        + "Télécharge de nouveau l'installateur depuis la dernière beta GitHub.";
+
+    private sealed record ReleaseAssets(
+        string Tag,
+        string BundleUrl,
+        string ChecksumUrl,
+        string ManifestUrl);
 
     private sealed class GitHubRelease
     {
+        [JsonPropertyName("tag_name")]
+        public string? TagName { get; init; }
+
+        [JsonPropertyName("draft")]
+        public bool? Draft { get; init; }
+
         [JsonPropertyName("assets")]
         public GitHubAsset[]? Assets { get; init; } = [];
     }

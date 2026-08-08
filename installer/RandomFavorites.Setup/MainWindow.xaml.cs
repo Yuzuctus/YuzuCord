@@ -7,6 +7,7 @@ using System.Windows.Automation.Peers;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using RandomFavorites.Setup.Core.Models;
 using RandomFavorites.Setup.Core.Services;
 using RandomFavorites.Setup.Dialogs;
@@ -16,7 +17,7 @@ namespace RandomFavorites.Setup;
 
 public partial class MainWindow : Window
 {
-    private readonly InstallerService _installerService = new();
+    private InstallerService? _installerService;
     private readonly CancellationTokenSource _lifetimeCancellation = new();
     private readonly List<string> _logLines = [];
     private CancellationTokenSource? _operationCancellation;
@@ -38,13 +39,14 @@ public partial class MainWindow : Window
     private bool _suppressSelectionChanged;
     private bool _suppressOpenAsarChanged;
     private bool _closeWhenIdle;
+    private double? _heightBeforeAdvanced;
+    private double? _topBeforeAdvanced;
     private string? _inspectionWarning;
     private string? _lastAnnouncedTitle;
 
     public MainWindow()
     {
         InitializeComponent();
-        _installerService.LogLine += AppendLog;
         ApplyViewState();
 
         Closing += (_, eventArgs) =>
@@ -59,9 +61,21 @@ public partial class MainWindow : Window
     private DiscordInstallation? SelectedDiscord =>
         DiscordBranchCombo.SelectedItem as DiscordInstallation;
 
+    private InstallerService InstallerService =>
+        _installerService ??= CreateInstallerService();
+
+    private InstallerService CreateInstallerService()
+    {
+        var service = new InstallerService();
+        service.LogLine += AppendLog;
+        return service;
+    }
+
     private async void MainWindow_OnLoaded(object sender, RoutedEventArgs e)
     {
         ClampToWorkArea();
+        await Dispatcher.Yield(DispatcherPriority.ContextIdle);
+        _ = InstallerService;
         try
         {
             await DetectDiscordAsync();
@@ -96,8 +110,8 @@ public partial class MainWindow : Window
         await Task.Yield();
 
         var previousBranch = SelectedDiscord?.Branch;
-        var installations = _installerService.DiscoverDiscordInstallations();
-        var savedState = _installerService.ReadState();
+        var installations = InstallerService.DiscoverDiscordInstallations();
+        var savedState = InstallerService.ReadState();
         var selected = installations.FirstOrDefault(item => item.Branch == previousBranch)
             ?? installations.FirstOrDefault(item => item.Branch == savedState?.Branch)
             ?? installations.FirstOrDefault();
@@ -119,7 +133,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            _availableManifest = await _installerService.GetAvailableManifestAsync(cancellationToken);
+            _availableManifest = await InstallerService.GetAvailableManifestAsync(cancellationToken);
             _inspectionWarning = null;
         }
         catch (OperationCanceledException)
@@ -129,7 +143,9 @@ public partial class MainWindow : Window
         catch (Exception error)
         {
             _availableManifest = null;
-            _inspectionWarning = "La vérification en ligne est momentanément indisponible.";
+            _inspectionWarning = error is InvalidOperationException
+                ? error.Message
+                : "La vérification en ligne est momentanément indisponible.";
             AppendUiLog($"Vérification de la version disponible impossible : {error.Message}");
         }
 
@@ -149,15 +165,15 @@ public partial class MainWindow : Window
             return;
         }
 
-        var state = _installerService.ReadState();
+        var state = InstallerService.ReadState();
         _installedState = state?.Branch == discord.Branch ? state : null;
-        _installedManifest = _installerService.ReadInstalledManifest(_installedState);
-        _installationHealthy = _installerService.IsInstallationHealthy(
+        _installedManifest = InstallerService.ReadInstalledManifest(_installedState);
+        _installationHealthy = InstallerService.IsInstallationHealthy(
             discord,
             _installedState,
             _installedManifest);
-        _openAsarInstalled = _installerService.IsOpenAsarInstalled(discord);
-        _installedOpenAsarDigest = _installerService.GetOpenAsarDigest(discord);
+        _openAsarInstalled = InstallerService.IsOpenAsarInstalled(discord);
+        _installedOpenAsarDigest = InstallerService.GetOpenAsarDigest(discord);
         if (resetOpenAsarPreference) SetOpenAsarToggle(_openAsarInstalled);
     }
 
@@ -196,7 +212,7 @@ public partial class MainWindow : Window
         _primaryAction = state.PrimaryAction;
         StatusTitleText.Text = state.Title;
         StatusDetailText.Text = state.Detail;
-        PrimaryActionText.Text = state.PrimaryActionText;
+        PrimaryActionText.Text = AddAccessKey(state.PrimaryActionText);
         PrimaryActionButton.IsEnabled = state.PrimaryActionEnabled && !_isBusy;
         AutomationProperties.SetName(PrimaryActionButton, state.PrimaryActionText);
         ContextText.Text = state.ContextText;
@@ -259,13 +275,24 @@ public partial class MainWindow : Window
             _ => "Accent",
         };
 
-        StatusPanel.Background = (Brush)FindResource(background);
-        StatusPanel.BorderBrush = (Brush)FindResource(
-            tone == InstallerStatusTone.Neutral ? "BorderSubtle" : accent);
+        StatusPanel.Background = Brushes.Transparent;
+        StatusPanel.BorderBrush = Brushes.Transparent;
+        StatusRule.Background = (Brush)FindResource(accent);
         StatusIconSurface.Background = (Brush)FindResource(background);
         StatusIcon.Stroke = (Brush)FindResource(accent);
         StatusIcon.Fill = Brushes.Transparent;
     }
+
+    private static string AddAccessKey(string text) => text switch
+    {
+        "Installer" => "_Installer",
+        "Mettre à jour" => "_Mettre à jour",
+        "Appliquer les changements" => "_Appliquer les changements",
+        "Réinstaller" => "_Réinstaller",
+        "Ouvrir Discord" => "_Ouvrir Discord",
+        "Réessayer" => "_Réessayer",
+        _ => text,
+    };
 
     private void ApplyStatusIcon(InstallerStatusIcon icon)
     {
@@ -312,7 +339,7 @@ public partial class MainWindow : Window
         if (_openAsarInstalled && !_desiredOpenAsar)
             return "Sera supprimé lors de l'application des changements";
         if (!_openAsarInstalled && _desiredOpenAsar)
-            return "Sera installé avec Yuzuctus Vencord";
+            return "Sera installé avec YuzuCord";
         if (_openAsarInstalled)
             return "Installé · démarrage de Discord plus rapide";
         return "Optionnel · démarrage de Discord plus rapide";
@@ -418,7 +445,7 @@ public partial class MainWindow : Window
     {
         try
         {
-            _installerService.StartDiscord(discord);
+            InstallerService.StartDiscord(discord);
             _canOpenDiscord = false;
             return result with { Message = result.Message + " Discord a été relancé." };
         }
@@ -445,7 +472,7 @@ public partial class MainWindow : Window
                 var desiredOpenAsar = _desiredOpenAsar;
                 _ = RunOperationAsync(
                     "Installation terminée",
-                    (discord, progress, token) => _installerService.InstallOrUpdateAsync(
+                    (discord, progress, token) => InstallerService.InstallOrUpdateAsync(
                         discord,
                         desiredOpenAsar,
                         progress,
@@ -457,7 +484,7 @@ public partial class MainWindow : Window
                     var current = _result ?? new InstallResult(
                         true,
                         "Installation terminée",
-                        "Yuzuctus Vencord est prêt.");
+                        "YuzuCord est prêt.");
                     _result = TryStartDiscord(discord, current);
                     ApplyViewState();
                 }
@@ -512,7 +539,7 @@ public partial class MainWindow : Window
         if (_isBusy || SelectedDiscord is null) return;
         var dialog = new ConfirmationDialog(
             "Réparer l'installation",
-            "La build Yuzuctus Vencord sera téléchargée, vérifiée puis réappliquée. Vos réglages seront conservés. Discord sera fermé pendant l'opération.",
+            "La build YuzuCord sera téléchargée, vérifiée puis réappliquée. Vos réglages seront conservés. Discord sera fermé pendant l'opération.",
             "Réparer")
         {
             Owner = this,
@@ -522,7 +549,7 @@ public partial class MainWindow : Window
         var desiredOpenAsar = _desiredOpenAsar;
         _ = RunOperationAsync(
             "Réparation terminée",
-            (discord, progress, token) => _installerService.RepairAsync(
+            (discord, progress, token) => InstallerService.RepairAsync(
                 discord,
                 desiredOpenAsar,
                 progress,
@@ -537,7 +564,7 @@ public partial class MainWindow : Window
 
         _ = RunOperationAsync(
             "Désinstallation terminée",
-            (discord, progress, token) => _installerService.UninstallAsync(
+            (discord, progress, token) => InstallerService.UninstallAsync(
                 discord,
                 selection.Mode,
                 selection.RemoveManagedPluginSettings,
@@ -555,7 +582,60 @@ public partial class MainWindow : Window
         AutomationProperties.SetName(
             AdvancedToggle,
             expanded ? "Masquer les options avancées" : "Afficher les options avancées");
-        if (expanded) _ = Dispatcher.BeginInvoke(() => AdvancedPanel.BringIntoView());
+        if (expanded)
+        {
+            _ = Dispatcher.BeginInvoke(() =>
+            {
+                ExpandWindowForAdvancedOptions();
+                AdvancedPanel.BringIntoView();
+                RestartDiscordCheck.Focus();
+            });
+        }
+        else
+        {
+            RestoreWindowAfterAdvancedOptions();
+        }
+    }
+
+    private void ExpandWindowForAdvancedOptions()
+    {
+        if (WindowState != WindowState.Normal || _heightBeforeAdvanced is not null)
+            return;
+
+        UpdateLayout();
+        var availableGrowth = Math.Max(0, MaxHeight - Height);
+        var desiredGrowth = Math.Max(0, MainScrollViewer.ScrollableHeight);
+        var growth = Math.Min(availableGrowth, desiredGrowth);
+        if (growth < 1) return;
+
+        _heightBeforeAdvanced = Height;
+        _topBeforeAdvanced = Top;
+        Height += growth;
+
+        var workArea = SystemParameters.WorkArea;
+        Top = Math.Max(workArea.Top + 12, Top - growth / 2);
+        UpdateLayout();
+    }
+
+    private void RestoreWindowAfterAdvancedOptions()
+    {
+        if (WindowState != WindowState.Normal)
+            return;
+        if (_heightBeforeAdvanced is not { } previousHeight)
+            return;
+
+        Height = Math.Min(previousHeight, MaxHeight);
+        if (_topBeforeAdvanced is { } previousTop)
+        {
+            var workArea = SystemParameters.WorkArea;
+            Top = Math.Clamp(
+                previousTop,
+                workArea.Top + 12,
+                Math.Max(workArea.Top + 12, workArea.Bottom - Height - 12));
+        }
+
+        _heightBeforeAdvanced = null;
+        _topBeforeAdvanced = null;
     }
 
     private void MoreButton_OnClick(object sender, RoutedEventArgs e)
@@ -578,7 +658,7 @@ public partial class MainWindow : Window
         }
 
         _logWindow = new LogWindow(
-            _installerService.CurrentLogFile,
+            InstallerService.CurrentLogFile,
             string.Join(Environment.NewLine, _logLines))
         {
             Owner = this,
@@ -589,10 +669,10 @@ public partial class MainWindow : Window
 
     private void OpenLogsFolderMenuItem_OnClick(object sender, RoutedEventArgs e)
     {
-        Directory.CreateDirectory(_installerService.Layout.Logs);
+        Directory.CreateDirectory(InstallerService.Layout.Logs);
         using var process = Process.Start(new ProcessStartInfo
         {
-            FileName = _installerService.Layout.Logs,
+            FileName = InstallerService.Layout.Logs,
             UseShellExecute = true,
         });
     }
@@ -622,7 +702,7 @@ public partial class MainWindow : Window
     }
 
     private void AppendUiLog(string message) =>
-        _installerService.WriteDiagnostic(message);
+        InstallerService.WriteDiagnostic(message);
 
     private void AppendLog(string line)
     {
@@ -638,6 +718,40 @@ public partial class MainWindow : Window
 
     private void MinimizeButton_OnClick(object sender, RoutedEventArgs e) =>
         WindowState = WindowState.Minimized;
+
+    private void MaximizeButton_OnClick(object sender, RoutedEventArgs e) =>
+        WindowState = WindowState == WindowState.Maximized
+            ? WindowState.Normal
+            : WindowState.Maximized;
+
+    private void MainWindow_OnStateChanged(object? sender, EventArgs e)
+    {
+        var maximized = WindowState == WindowState.Maximized;
+        RootBorder.CornerRadius = new CornerRadius(maximized ? 0 : 12);
+        MaximizeIcon.Data = (Geometry)FindResource(
+            maximized ? "RestoreGeometry" : "MaximizeGeometry");
+        MaximizeButton.ToolTip = maximized ? "Restaurer" : "Agrandir";
+        AutomationProperties.SetName(
+            MaximizeButton,
+            maximized ? "Restaurer" : "Agrandir");
+
+        if (!maximized)
+        {
+            _ = Dispatcher.BeginInvoke(() =>
+            {
+                if (AdvancedToggle.IsChecked == true)
+                    ExpandWindowForAdvancedOptions();
+                else
+                    RestoreWindowAfterAdvancedOptions();
+            });
+        }
+    }
+
+    private void MainWindow_OnActivated(object? sender, EventArgs e) =>
+        TitleBarContent.Opacity = 1;
+
+    private void MainWindow_OnDeactivated(object? sender, EventArgs e) =>
+        TitleBarContent.Opacity = 0.68;
 
     private void CloseButton_OnClick(object sender, RoutedEventArgs e)
     {
@@ -671,8 +785,11 @@ public partial class MainWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         _lifetimeCancellation.Cancel();
-        _installerService.LogLine -= AppendLog;
-        _installerService.Dispose();
+        if (_installerService is not null)
+        {
+            _installerService.LogLine -= AppendLog;
+            _installerService.Dispose();
+        }
         _operationCancellation?.Dispose();
         _lifetimeCancellation.Dispose();
         base.OnClosed(e);

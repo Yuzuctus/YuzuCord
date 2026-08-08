@@ -19,19 +19,18 @@ import { Logger } from "@utils/Logger";
 import definePlugin, { OptionType } from "@utils/types";
 import {
     Channel,
-    CloudUpload as TCloudUpload,
     Command,
     Emoji,
     RenderModalProps,
     SoundboardSound,
     Sticker,
 } from "@vencord/discord-types";
-import { CloudUploadPlatform } from "@vencord/discord-types/enums";
-import { findByCodeLazy, findByPropsLazy, findLazy } from "@webpack";
+import { findByCodeLazy, findByPropsLazy } from "@webpack";
 import {
     ChannelStore,
     ContextMenuApi,
     EmojiStore,
+    ExpressionPickerStore,
     FluxDispatcher,
     GuildStore,
     IconUtils,
@@ -58,6 +57,22 @@ import {
 } from "@webpack/common";
 import type { ComponentProps, ReactNode, Ref } from "react";
 
+import {
+    createSoundboardSnapshot,
+    DEFAULT_SOUNDBOARD_FILE_NAME,
+    type SoundboardSnapshot,
+} from "./_shared/soundboard/src/attachment";
+import {
+    shouldLoadChatSoundboardForKind,
+    shouldLoadChatSoundboardForKinds,
+} from "./_shared/soundboard/src/loader";
+import {
+    canSendSoundboardAttachment,
+    ensureSoundboardData,
+    resolveSoundboardAudioUrl,
+    sendSoundboardAttachment,
+    SoundboardAttachmentError,
+} from "./_shared/soundboard/src/runtime";
 import { AdaptiveRandomPicker, type RepeatStrength } from "./adaptiveRandom";
 import { formatGifContent } from "./messageFormatting";
 import {
@@ -67,21 +82,6 @@ import {
     resolveGifContentUrl,
 } from "./previewMedia";
 import { buildSelectionPlan } from "./selectionPlan";
-import {
-    buildSoundboardFileName,
-    createSoundboardSnapshot,
-    DEFAULT_SOUNDBOARD_FILE_NAME,
-    detectSoundboardAudioFormat,
-    getSoundboardAudioMimeType,
-    isReasonableSoundboardBlob,
-    MAX_SOUNDBOARD_AUDIO_BYTES,
-    type SoundboardSnapshot,
-} from "./soundboardAttachment";
-import {
-    createSharedSoundboardLoader,
-    shouldLoadChatSoundboardForKind,
-    shouldLoadChatSoundboardForKinds,
-} from "./soundboardChatLoader";
 import {
     collectChatSoundboardPool,
     collectUsableSoundboardSounds,
@@ -202,12 +202,6 @@ type SendSoundboardSound = (
     sequenceNumber?: number,
 ) => void;
 
-type GetSoundboardSoundUrl = (soundId: string) => string;
-
-type FetchSoundboardSounds = (options?: {
-    disableAnalytics?: boolean;
-}) => Promise<void>;
-
 const logger = new Logger("RandomFavorites");
 const LottiePlayer = findByPropsLazy("loadAnimation") as {
     loadAnimation(options: {
@@ -228,17 +222,6 @@ const sendSoundboardSound = findByCodeLazy(
     "source_guild_id",
     "SEND_SOUNDBOARD_SOUND",
 ) as SendSoundboardSound;
-const getSoundboardSoundUrl = findByCodeLazy(
-    "CDN_HOST",
-    ".SOUNDBOARD_SOUND(",
-) as GetSoundboardSoundUrl;
-const fetchSoundboardSounds = findByCodeLazy(
-    "REQUEST_SOUNDBOARD_SOUNDS",
-    "SOUNDBOARD_FETCH_DEFAULT_SOUNDS",
-) as FetchSoundboardSounds;
-const CloudUpload: typeof TCloudUpload = findLazy(
-    module => module.prototype?.trackUploadFinished,
-);
 const activeChannels = new Set<string>();
 const concreteKinds: ConcreteFavoriteKind[] = ["gif", "emoji", "sticker", "soundboard"];
 const randomSoundboardGridItems: RandomSoundboardGridItem[] = [
@@ -249,7 +232,6 @@ const randomSoundboardGridItems: RandomSoundboardGridItem[] = [
 const candidatePicker = new AdaptiveRandomPicker<FavoriteCandidate>(candidate => candidate.key);
 const kindPicker = new AdaptiveRandomPicker<ConcreteFavoriteKind>(kind => kind);
 const soundboardPicker = new AdaptiveRandomPicker<SoundboardSound>(soundboardCandidateKey);
-const chatSoundboardLoader = createSharedSoundboardLoader();
 
 const settings = definePluginSettings({
     showChatBarButton: {
@@ -629,36 +611,21 @@ function soundboardUnavailableError() {
 async function ensureChatSoundboardData(shouldLoad: boolean) {
     if (!shouldLoad) return;
 
-    const { promise, started } = chatSoundboardLoader.getOrStart(
-        () => fetchSoundboardSounds({ disableAnalytics: true }),
-    );
-
-    if (started) {
-        showToast(
+    await ensureSoundboardData({
+        localize,
+        logger,
+        onStarted: () => showToast(
             localize(
-                "Loading accessible soundboard sounds…",
+                "Loading accessible Soundboard sounds…",
                 "Chargement des sons Soundboard accessibles…",
             ),
             Toasts.Type.MESSAGE,
-        );
-    }
-
-    try {
-        await promise;
-    } catch (error) {
-        logger.error("Failed to load Discord soundboard sounds for a chat attachment", error);
-        throw new SoundboardAttachmentError(soundboardStoreFetchError());
-    }
+        ),
+    });
 }
 
 function resolveSoundboardPreviewUrl(sound: Pick<SoundboardSnapshot, "soundId">) {
-    try {
-        const url = getSoundboardSoundUrl(sound.soundId);
-        return typeof url === "string" && url.length > 0 ? url : undefined;
-    } catch (error) {
-        logger.error("Failed to resolve a soundboard preview URL", error);
-        return undefined;
-    }
+    return resolveSoundboardAudioUrl(sound.soundId);
 }
 
 function createChatSoundboardCandidate(sound: SoundboardSound): FavoriteCandidate {
@@ -891,6 +858,13 @@ function createRandomSoundboardGuild(
 function addRandomSoundboardCategory(
     categories: readonly SoundboardCategory[],
 ): readonly SoundboardCategory[] {
+    const expressionPickerState = (
+        ExpressionPickerStore.useExpressionPickerStore as typeof ExpressionPickerStore.useExpressionPickerStore & {
+            getState?(): { activeView?: string | null; };
+        }
+    ).getState?.();
+    if (expressionPickerState?.activeView === "soundboard") return categories;
+
     // A private call has no guild id; use a native guild only as a prototype.
     const currentGuildId = soundboardInsertionGuildId();
 
@@ -1007,10 +981,7 @@ function canSendMessages(channel: Channel) {
 }
 
 function canAttachFiles(channel: Channel) {
-    if (channel.isPrivate()) return true;
-
-    return canSendMessages(channel)
-        && PermissionStore.can(PermissionsBits.ATTACH_FILES, channel);
+    return canSendSoundboardAttachment(channel);
 }
 
 function collectGifs(frecency: FrecencySettings): {
@@ -1373,162 +1344,22 @@ function buildReplyOptions(channelId: string) {
     ) ?? {};
 }
 
-class SoundboardAttachmentError extends Error { }
-
-function soundboardAttachmentError(english: string, french: string) {
-    return new SoundboardAttachmentError(localize(english, french));
-}
-
-function revalidateChatSoundboardCandidate(
-    candidate: FavoriteCandidate,
-    channel: Channel,
-) {
+async function sendSoundboardCandidate(candidate: FavoriteCandidate, channel: Channel) {
     const snapshot = candidate.soundboard;
     if (!snapshot) {
-        throw soundboardAttachmentError(
-            "This soundboard candidate is incomplete. Draw another sound before sending.",
-            "Ce candidat soundboard est incomplet. Relance le tirage avant l'envoi.",
+        throw new SoundboardAttachmentError(
+            "stale",
+            localize(
+                "This Soundboard candidate is incomplete. Draw another sound before sending.",
+                "Ce candidat Soundboard est incomplet. Relance le tirage avant l'envoi.",
+            ),
         );
     }
 
-    if (!canAttachFiles(channel))
-        throw soundboardAttachmentError(
-            "Soundboard audio cannot be sent in this channel because you need permission to send messages and attach files.",
-            "L'audio du soundboard ne peut pas être envoyé dans ce salon : il faut pouvoir envoyer des messages et joindre des fichiers.",
-        );
-
-    try {
-        const currentSound = SoundboardStore.getSound(snapshot.guildId, snapshot.soundId);
-        if (!currentSound || currentSound.available === false)
-            throw soundboardAttachmentError(
-                "This sound is no longer available in Discord. Draw another one before sending.",
-                "Ce son n'est plus disponible dans Discord. Relance le tirage avant l'envoi.",
-            );
-    } catch (error) {
-        if (error instanceof SoundboardAttachmentError) throw error;
-
-        logger.error("Failed to revalidate a chat soundboard sound", error);
-        throw soundboardAttachmentError(
-            "Discord could not validate this soundboard sound. Draw another sound, then try again.",
-            "Discord n'a pas pu valider ce son du soundboard. Relance le tirage, puis réessaie.",
-        );
-    }
-
-    return snapshot;
-}
-
-async function downloadSoundboardAttachment(
-    candidate: FavoriteCandidate,
-    channel: Channel,
-): Promise<File> {
-    const snapshot = revalidateChatSoundboardCandidate(candidate, channel);
-    const url = resolveSoundboardPreviewUrl(snapshot);
-    if (!url) {
-        throw soundboardAttachmentError(
-            "Discord did not provide a soundboard CDN URL. Draw another sound before sending.",
-            "Discord n'a pas fourni d'URL CDN pour ce son. Relance le tirage avant l'envoi.",
-        );
-    }
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15_000);
-
-    try {
-        const response = await fetch(url, { signal: controller.signal });
-        if (!response.ok) {
-            logger.error("Soundboard CDN download returned an HTTP error", {
-                status: response.status,
-            });
-            throw soundboardAttachmentError(
-                "Discord could not download this soundboard sound. Draw another one and try again.",
-                "Discord n'a pas pu télécharger ce son du soundboard. Relance le tirage et réessaie.",
-            );
-        }
-
-        const contentLength = Number(response.headers.get("content-length"));
-        if (Number.isFinite(contentLength) && contentLength > MAX_SOUNDBOARD_AUDIO_BYTES) {
-            logger.error("Soundboard CDN response exceeded the local size limit", {
-                contentLength,
-            });
-            throw soundboardAttachmentError(
-                "This soundboard file is too large to send safely.",
-                "Ce fichier soundboard est trop volumineux pour être envoyé en toute sécurité.",
-            );
-        }
-
-        const blob = await response.blob();
-        if (!isReasonableSoundboardBlob(blob)) {
-            logger.error("Soundboard CDN response has an invalid size", { size: blob.size });
-            throw soundboardAttachmentError(
-                "This soundboard file has an invalid size and was not sent.",
-                "La taille de ce fichier soundboard est invalide : il n'a pas été envoyé.",
-            );
-        }
-
-        const bytes = new Uint8Array(await blob.arrayBuffer());
-        const format = detectSoundboardAudioFormat(
-            response.headers.get("content-type") || blob.type,
-            bytes,
-        );
-        if (!format) {
-            logger.error("Soundboard CDN response has an unsupported audio format", {
-                contentType: response.headers.get("content-type") || blob.type || "missing",
-                size: bytes.byteLength,
-            });
-            throw soundboardAttachmentError(
-                "Discord returned an unknown audio format. The sound was not sent.",
-                "Discord a retourné un format audio inconnu. Le son n'a pas été envoyé.",
-            );
-        }
-
-        const mimeType = getSoundboardAudioMimeType(format);
-        return new File(
-            [bytes],
-            buildSoundboardFileName(settings.store.soundboardFileName, format),
-            { type: mimeType },
-        );
-    } catch (error) {
-        if (error instanceof SoundboardAttachmentError) throw error;
-
-        logger.error("Failed to download a soundboard audio attachment", {
-            aborted: controller.signal.aborted,
-            error: error instanceof Error ? error.name : "unknown",
-        });
-        throw soundboardAttachmentError(
-            controller.signal.aborted
-                ? "The soundboard download timed out. Try again."
-                : "The soundboard sound could not be downloaded. Try again.",
-            controller.signal.aborted
-                ? "Le téléchargement du soundboard a expiré. Réessaie."
-                : "Le son du soundboard n'a pas pu être téléchargé. Réessaie.",
-        );
-    } finally {
-        clearTimeout(timeout);
-    }
-}
-
-async function sendSoundboardCandidate(candidate: FavoriteCandidate, channel: Channel) {
-    const file = await downloadSoundboardAttachment(candidate, channel);
-    const upload = new CloudUpload({
-        file,
-        isThumbnail: false,
-        platform: CloudUploadPlatform.WEB,
-    }, channel.id);
-
-    // MessageActions owns Discord's upload queue, limits, slowmode and reply handling.
-    await sendMessage(
-        channel.id,
-        { content: "" },
-        false,
-        {
-            ...buildReplyOptions(channel.id),
-            attachmentsToUpload: [upload],
-        },
-    );
-
-    FluxDispatcher.dispatch({
-        type: "DELETE_PENDING_REPLY",
-        channelId: channel.id,
+    await sendSoundboardAttachment(snapshot, channel, {
+        fileName: settings.store.soundboardFileName,
+        localize,
+        logger,
     });
 }
 
@@ -2020,7 +1851,7 @@ function RandomSoundboardPreviewModal({
     let soundUrl: string | undefined;
 
     try {
-        soundUrl = getSoundboardSoundUrl(sound.soundId);
+        soundUrl = resolveSoundboardAudioUrl(sound.soundId);
     } catch (error) {
         logger.error("Failed to resolve a soundboard preview URL", error);
     }
