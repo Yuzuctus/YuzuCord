@@ -1,16 +1,17 @@
-name: Publish YuzuCord beta release
+name: Publish YuzuCord release
 
 on:
   push:
     tags:
       - "v[0-9]+-beta[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+"
       - "v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+"
 
 permissions:
   contents: write
 
 concurrency:
-  group: yuzucord-beta-release-assets
+  group: yuzucord-release-assets
   cancel-in-progress: false
 
 jobs:
@@ -110,19 +111,29 @@ jobs:
           --project distribution/installer/RandomFavorites.Setup.SmokeTests/RandomFavorites.Setup.SmokeTests.csproj
           -c Release
 
-      - name: Publish GitHub pre-release
+      - name: Publish GitHub release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create $env:GITHUB_REF_NAME `
-            release-assets/YuzuCordSetup.exe `
-            release-assets/YuzuCordSetup.exe.sha256 `
-            release-assets/YuzuCordBundle.zip `
-            release-assets/YuzuCordBundle.zip.sha256 `
-            release-assets/YuzuCordBundle.manifest.json `
-            --repo $env:GITHUB_REPOSITORY `
-            --title "YuzuCord $env:GITHUB_REF_NAME" `
-            --generate-notes `
-            --prerelease `
-            --verify-tag
+          $releaseArguments = @(
+            "release", "create", $env:GITHUB_REF_NAME,
+            "release-assets/YuzuCordSetup.exe",
+            "release-assets/YuzuCordSetup.exe.sha256",
+            "release-assets/YuzuCordBundle.zip",
+            "release-assets/YuzuCordBundle.zip.sha256",
+            "release-assets/YuzuCordBundle.manifest.json",
+            "--repo", $env:GITHUB_REPOSITORY,
+            "--title", "YuzuCord $env:GITHUB_REF_NAME",
+            "--generate-notes",
+            "--verify-tag"
+          )
+
+          if ($env:GITHUB_REF_NAME -match "-beta") {
+            $releaseArguments += "--prerelease"
+          } else {
+            $releaseArguments += "--latest"
+          }
+
+          & gh @releaseArguments
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

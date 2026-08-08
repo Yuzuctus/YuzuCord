@@ -1,10 +1,12 @@
 # YuzuCord
 
-Une distribution personnalisée de Vencord pour Windows, actuellement publiée uniquement en beta.
+Une distribution personnalisée de Vencord pour Windows, construite à partir du Vencord officiel courant et
+d'un catalogue modulaire de plugins sélectionnés par Yuzuctus.
 
 ## Installation
 
-1. Télécharge `YuzuCordSetup.exe` depuis la dernière release beta GitHub.
+1. Télécharge [`YuzuCordSetup.exe`](https://github.com/Yuzuctus/YuzuCord/releases/latest/download/YuzuCordSetup.exe)
+   depuis la dernière release stable GitHub.
 2. Ouvre-le et choisis ta version de Discord.
 3. Active OpenAsar si tu souhaites cette optimisation facultative.
 4. Clique sur **Installer**.
@@ -46,9 +48,9 @@ clairement les créations Yuzuctus, les intégrations externes et les plugins Ve
 
 ## Mettre à jour, réparer ou désinstaller
 
-Rouvre le même EXE beta :
+Rouvre le même EXE :
 
-- **Installer / Mettre à jour** récupère la dernière build beta vérifiée ;
+- **Installer / Mettre à jour** récupère la build stable vérifiée associée à l'installateur ;
 - **Réparer** réapplique la build sans supprimer les réglages ;
 - **Désinstaller** peut retirer seulement les plugins gérés, Vencord en conservant ses données, ou l’ensemble.
 

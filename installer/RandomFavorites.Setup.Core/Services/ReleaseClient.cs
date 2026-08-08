@@ -392,7 +392,7 @@ public sealed class ReleaseClient : IDisposable
         {
             throw new InvalidOperationException(
                 "Aucune release YuzuCord installable n'est disponible sur GitHub. "
-                + "Télécharge une beta contenant les fichiers YuzuCordBundle.");
+                + "Télécharge une release contenant les fichiers YuzuCordBundle.");
         }
 
         selectedTag = Interlocked.CompareExchange(
@@ -473,7 +473,7 @@ public sealed class ReleaseClient : IDisposable
 
     private static string BuildMissingAssetMessage(string releaseTag, string assetName) =>
         $"La release YuzuCord {releaseTag} est incomplète : {assetName} est introuvable. "
-        + "Télécharge de nouveau l'installateur depuis la dernière beta GitHub.";
+        + "Télécharge de nouveau l'installateur depuis la dernière release GitHub.";
 
     private sealed record ReleaseAssets(
         string Tag,

@@ -3,8 +3,8 @@
 Ce dépôt n’est plus un simple installateur de RandomFavorites. YuzuCord est une distribution Windows de Vencord
 construite à partir du Vencord officiel courant et d’un catalogue de plugins Yuzuctus.
 
-La distribution reste beta-only. `main` est la branche par défaut et `beta-v2` la branche de préparation des
-betas. Le dépôt GitHub public est `Yuzuctus/YuzuCord`.
+La distribution stable est publiée depuis `main`. La branche historique `beta-v2` reste disponible pour les
+anciennes préversions, mais n'est plus la branche de référence. Le dépôt GitHub public est `Yuzuctus/YuzuCord`.
 
 Les branches de travail suivent `feature/<nom>` ou `fix/<nom>`. Ne pas créer de branche préfixée par le nom
 d’un outil ou d’un assistant.
@@ -111,7 +111,7 @@ Le produit visible est YuzuCord, même si certains namespaces C#, l’identifian
 
 L’installateur WPF :
 
-- télécharge le dernier bundle beta et le vérifie ;
+- télécharge le bundle de la release associée à l'installateur et le vérifie ;
 - compare les installations par `pluginsDigest` et commit Vencord ;
 - affiche les plugins inclus ;
 - installe, met à jour, répare ou désinstalle ;
@@ -133,8 +133,8 @@ désormais alimenté par `resolved-plugins.json`.
 - valide les scripts avec Windows PowerShell ;
 - compile et teste l’installateur.
 
-`.github/workflows/beta-release.yml` est déclenché uniquement par les tags beta acceptés. Il refait les mêmes
-contrôles, construit le bundle et l’EXE autonome, puis publie une GitHub pre-release.
+`.github/workflows/release.yml` accepte les tags stables et beta. Il refait les mêmes contrôles, construit le
+bundle et l’EXE autonome, puis publie une release stable ou une pre-release selon le tag.
 
 ## Ajouter un plugin local
 
@@ -193,7 +193,7 @@ La migration modulaire et SoundboardChat ont été contrôlés avec :
 - `testTsc` sans erreur ;
 - build de production du Vencord officiel courant réussi ;
 - correspondance des deux patchs SoundboardChat dans le bundle Discord courant observé ;
-- build .NET sans avertissement et 22/22 smoke tests installateur réussis ;
+- build .NET sans avertissement et 26/26 smoke tests installateur réussis ;
 - smoke test complet du manager avec les deux IDs résolus et `-SkipInject`, sans modification de Discord.
 
 ## Garde-fous à conserver
@@ -210,7 +210,7 @@ La migration modulaire et SoundboardChat ont été contrôlés avec :
 
 - SoundboardChat dépend de la structure minifiée du sélecteur Discord ; la CI détecte la plupart des ruptures,
   mais une validation visuelle et fonctionnelle en VM reste nécessaire ;
-- la distribution est beta-only et l’EXE n’est pas signé ;
+- l’EXE stable n’est pas signé ;
 - les noms de projets C# et certains chemins internes conservent encore l’identité historique RandomFavorites ;
 - l’ajout ou la suppression de plugins change le bundle complet : il n’existe pas encore de sélection de
   plugins au moment de l’installation.

@@ -16,6 +16,8 @@ var tests = new (string Name, Action Run)[]
     ("incomplete tagged release reports an actionable message", TestMissingReleaseAssetMessage),
     ("beta release URLs target the beta tag", TestBetaReleaseUrls),
     ("beta manifest versions are accepted", TestBetaManifestVersion),
+    ("stable release URLs target the stable tag", TestStableReleaseUrls),
+    ("stable manifest versions are accepted", TestStableManifestVersion),
     ("catalog manifests validate the YuzuCord identity", TestCatalogManifest),
     ("safe deletion guard rejects broad and sibling paths", TestSafeDeleteGuard),
     ("installer state rejects payload paths outside its version directory", TestStatePathGuard),
@@ -177,6 +179,27 @@ static void TestBetaManifestVersion()
     BundleManifestValidator.Validate(CreateManifest("v2-beta1", 'e', 'f'));
     AssertThrows<InvalidDataException>(() =>
         BundleManifestValidator.Validate(CreateManifest("v1.9.1-alpha.1", 'e', 'f')));
+}
+
+static void TestStableReleaseUrls()
+{
+    var expected = CreateManifest("v2.0.0", 'e', 'f');
+    var handler = new ManifestReleaseHandler(expected);
+    using var client = new ReleaseClient(handler, "v2.0.0");
+    var manifest = client.GetLatestManifestAsync(CancellationToken.None)
+        .GetAwaiter()
+        .GetResult();
+
+    Assert(manifest.Version == expected.Version);
+    Assert(handler.LastRequestUri?.AbsolutePath ==
+        "/Yuzuctus/YuzuCord/releases/download/v2.0.0/YuzuCordBundle.manifest.json");
+}
+
+static void TestStableManifestVersion()
+{
+    BundleManifestValidator.Validate(CreateManifest("v2.0.0", 'e', 'f'));
+    AssertThrows<InvalidDataException>(() =>
+        BundleManifestValidator.Validate(CreateManifest("v2.0", 'e', 'f')));
 }
 
 static void TestCatalogManifest()
