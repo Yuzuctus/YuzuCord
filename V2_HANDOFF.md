@@ -26,8 +26,9 @@ Etat actuel :
 - branche locale active : `main` ;
 - branche par defaut GitHub : `main` ;
 - branche beta : `beta-v2` ;
-- `main` et `beta-v2` pointent sur le commit `a6780aa` ;
+- `main` et `beta-v2` pointent sur le commit `a83c0f4` ;
 - tag beta : `v2-beta1` ;
+- le tag `v2-beta1` pointe sur le commit de release `a6780aa` ;
 - release GitHub beta : `https://github.com/Yuzuctus/RandomFavorites/releases/tag/v2-beta1` ;
 - workflow beta reussi : `https://github.com/Yuzuctus/RandomFavorites/actions/runs/31273699913` ;
 - les autres branches locales et distantes ont ete supprimees ;
