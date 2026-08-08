@@ -75,7 +75,7 @@ function Assert-GitClean {
     }
 }
 
-$distributionRoot = Resolve-ExistingDirectory $DistributionDirectory "Yuzuctus Vencord distribution"
+$distributionRoot = Resolve-ExistingDirectory $DistributionDirectory "YuzuCord distribution"
 $vencordRoot = Resolve-ExistingDirectory $VencordDirectory "Vencord"
 $outputRoot = [IO.Path]::GetFullPath($OutputDirectory)
 $catalogFile = if ([string]::IsNullOrWhiteSpace($CatalogPath)) {
@@ -83,7 +83,7 @@ $catalogFile = if ([string]::IsNullOrWhiteSpace($CatalogPath)) {
 } else {
     $CatalogPath
 }
-Assert-GitClean $distributionRoot "Yuzuctus Vencord distribution"
+Assert-GitClean $distributionRoot "YuzuCord distribution"
 Assert-GitClean $vencordRoot "Vencord"
 $catalogInfo = Invoke-YuzuctusPluginMaterialization `
     -CatalogPath $catalogFile `
@@ -96,7 +96,7 @@ $distRoot = Join-Path $stagingRoot "dist"
 $toolsRoot = Join-Path $stagingRoot "tools"
 $licensesRoot = Join-Path $stagingRoot "licenses"
 $catalogRoot = Join-Path $stagingRoot "catalog"
-$bundlePath = Join-Path $outputRoot "YuzuctusVencordBundle.zip"
+$bundlePath = Join-Path $outputRoot "YuzuCordBundle.zip"
 
 New-Item -ItemType Directory -Force -Path $outputRoot | Out-Null
 New-Item -ItemType Directory -Force -Path $distRoot, $toolsRoot, $licensesRoot, $catalogRoot | Out-Null
@@ -104,7 +104,7 @@ New-Item -ItemType Directory -Force -Path $distRoot, $toolsRoot, $licensesRoot, 
 try {
     $openAsarRelease = Invoke-RestMethod `
         -Uri "https://api.github.com/repos/GooseMod/OpenAsar/releases/tags/nightly" `
-        -Headers @{ "User-Agent" = "YuzuctusVencordReleaseBuilder" }
+        -Headers @{ "User-Agent" = "YuzuCordReleaseBuilder" }
     $openAsarAsset = $openAsarRelease.assets |
         Where-Object { $_.name -eq "app.asar" } |
         Select-Object -First 1
@@ -181,7 +181,7 @@ try {
         -Destination (Join-Path $licensesRoot "Vencord-LICENSE")
     Copy-Item `
         -LiteralPath (Join-Path $distributionRoot "LICENSE") `
-        -Destination (Join-Path $licensesRoot "YuzuctusVencord-LICENSE")
+        -Destination (Join-Path $licensesRoot "YuzuCord-LICENSE")
     Copy-Item `
         -LiteralPath (Join-Path $distributionRoot "installer\THIRD_PARTY_NOTICES.md") `
         -Destination $stagingRoot
@@ -205,7 +205,7 @@ try {
     $manifest = [ordered]@{
         schemaVersion = 3
         productId = "YuzuctusVencord"
-        productName = "Yuzuctus Vencord"
+        productName = "YuzuCord"
         version = $Version
         vencordRepository = $vencordRepository
         vencordCommit = $vencordCommit
@@ -230,7 +230,7 @@ try {
         Set-Content -LiteralPath $manifestPath -Encoding utf8
     Copy-Item `
         -LiteralPath $manifestPath `
-        -Destination (Join-Path $outputRoot "YuzuctusVencordBundle.manifest.json") `
+        -Destination (Join-Path $outputRoot "YuzuCordBundle.manifest.json") `
         -Force
 
     Compress-Archive `
@@ -239,7 +239,7 @@ try {
         -CompressionLevel Optimal `
         -Force
     $bundleHash = (Get-FileHash -LiteralPath $bundlePath -Algorithm SHA256).Hash.ToLowerInvariant()
-    "$bundleHash  YuzuctusVencordBundle.zip" |
+    "$bundleHash  YuzuCordBundle.zip" |
         Set-Content -LiteralPath "$bundlePath.sha256" -Encoding ascii -NoNewline
 
     Write-Host "Built $bundlePath"

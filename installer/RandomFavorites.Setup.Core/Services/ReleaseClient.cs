@@ -12,11 +12,11 @@ namespace RandomFavorites.Setup.Core.Services;
 public sealed class ReleaseClient : IDisposable
 {
     public const string BundleUrl =
-        "https://github.com/Yuzuctus/RandomFavorites/releases/latest/download/YuzuctusVencordBundle.zip";
+        "https://github.com/Yuzuctus/YuzuCord/releases/latest/download/YuzuCordBundle.zip";
     public const string ChecksumUrl =
-        "https://github.com/Yuzuctus/RandomFavorites/releases/latest/download/YuzuctusVencordBundle.zip.sha256";
+        "https://github.com/Yuzuctus/YuzuCord/releases/latest/download/YuzuCordBundle.zip.sha256";
     public const string ManifestUrl =
-        "https://github.com/Yuzuctus/RandomFavorites/releases/latest/download/YuzuctusVencordBundle.manifest.json";
+        "https://github.com/Yuzuctus/YuzuCord/releases/latest/download/YuzuCordBundle.manifest.json";
     public const string OfficialInstallerUrl =
         "https://github.com/Vencord/Installer/releases/latest/download/VencordInstallerCli.exe";
     public const string OfficialInstallerChecksumUrl =
@@ -24,7 +24,7 @@ public sealed class ReleaseClient : IDisposable
     public const string OpenAsarReleaseApiUrl =
         "https://api.github.com/repos/GooseMod/OpenAsar/releases/tags/nightly";
     private const string ReleaseDownloadBaseUrl =
-        "https://github.com/Yuzuctus/RandomFavorites/releases/download";
+        "https://github.com/Yuzuctus/YuzuCord/releases/download";
 
     private readonly HttpClient _httpClient;
     private readonly string _bundleUrl;
@@ -35,19 +35,19 @@ public sealed class ReleaseClient : IDisposable
     {
         _httpClient = handler is null ? new HttpClient() : new HttpClient(handler);
         _httpClient.DefaultRequestHeaders.UserAgent.Add(
-            new ProductInfoHeaderValue("YuzuctusVencordSetup", "2.0"));
+            new ProductInfoHeaderValue("YuzuCordSetup", "2.0"));
         _httpClient.Timeout = TimeSpan.FromMinutes(15);
 
         var selectedReleaseTag = releaseTag ?? ReadBuildReleaseTag();
-        _bundleUrl = BuildReleaseAssetUrl(selectedReleaseTag, BundleUrl, "YuzuctusVencordBundle.zip");
+        _bundleUrl = BuildReleaseAssetUrl(selectedReleaseTag, BundleUrl, "YuzuCordBundle.zip");
         _checksumUrl = BuildReleaseAssetUrl(
             selectedReleaseTag,
             ChecksumUrl,
-            "YuzuctusVencordBundle.zip.sha256");
+            "YuzuCordBundle.zip.sha256");
         _manifestUrl = BuildReleaseAssetUrl(
             selectedReleaseTag,
             ManifestUrl,
-            "YuzuctusVencordBundle.manifest.json");
+            "YuzuCordBundle.manifest.json");
     }
 
     public async Task<string> DownloadVerifiedBundleAsync(
@@ -56,13 +56,13 @@ public sealed class ReleaseClient : IDisposable
         CancellationToken cancellationToken)
     {
         layout.EnsureDirectories();
-        var bundlePath = Path.Combine(layout.Downloads, "YuzuctusVencordBundle.zip");
+        var bundlePath = Path.Combine(layout.Downloads, "YuzuCordBundle.zip");
         var checksum = ParseSha256(await _httpClient.GetStringAsync(_checksumUrl, cancellationToken));
 
         await DownloadFileWithRetriesAsync(
             _bundleUrl,
             bundlePath,
-            "Téléchargement de Yuzuctus Vencord",
+            "Téléchargement de YuzuCord",
             progress,
             cancellationToken);
 
@@ -345,7 +345,10 @@ public sealed class ReleaseClient : IDisposable
     {
         return Assembly.GetEntryAssembly()?
             .GetCustomAttributes<AssemblyMetadataAttribute>()
-            .FirstOrDefault(attribute => attribute.Key == "YuzuctusVencordReleaseTag")?.Value
+            .FirstOrDefault(attribute => attribute.Key == "YuzuCordReleaseTag")?.Value
+            ?? Assembly.GetEntryAssembly()?
+                .GetCustomAttributes<AssemblyMetadataAttribute>()
+                .FirstOrDefault(attribute => attribute.Key == "YuzuctusVencordReleaseTag")?.Value
             ?? Assembly.GetEntryAssembly()?
                 .GetCustomAttributes<AssemblyMetadataAttribute>()
                 .FirstOrDefault(attribute => attribute.Key == "RandomFavoritesReleaseTag")?.Value;
@@ -365,7 +368,7 @@ public sealed class ReleaseClient : IDisposable
         if (!Regex.IsMatch(
                 releaseTag,
                 "^v(?:[0-9]+\\.[0-9]+\\.[0-9]+(?:-beta\\.[0-9]+)?|[0-9]+-beta[0-9]+)$"))
-            throw new ArgumentException("Le tag de release Yuzuctus Vencord est invalide.", nameof(releaseTag));
+            throw new ArgumentException("Le tag de release YuzuCord est invalide.", nameof(releaseTag));
 
         return $"{ReleaseDownloadBaseUrl}/{releaseTag}/{assetName}";
     }

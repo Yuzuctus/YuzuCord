@@ -15,8 +15,8 @@ Pour ajouter un plugin :
 4. déclarer les bibliothèques partagées dans `mappings` ;
 5. lancer `scripts/Test-PluginCatalog.ps1`, puis les tests, le lint, le typecheck et le build Vencord.
 
-Le tag de distribution `YuzuMod` est déclaré dans le catalogue : il ne doit pas être recopié manuellement dans
-le code du plugin. Le wrapper généré l’ajoute au registre des filtres et aux métadonnées du plugin.
+La provenance est déclarée dans le catalogue et ne doit pas être recopiée dans le code du plugin. Le wrapper
+généré ajoute `YuzuMod` pour une création Yuzuctus ou `ThirdParty` pour une intégration externe.
 
 Les chaînes visibles dans Discord doivent utiliser une localisation français/anglais lorsque c’est pratique.
 Les plugins ne doivent ajouter ni télémétrie, ni requête vers un service tiers, ni envoi sans action explicite.

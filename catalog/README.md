@@ -1,6 +1,6 @@
 # Catalogue des plugins
 
-`plugins.json` est l’unique source de vérité des plugins inclus dans Yuzuctus Vencord. Son schéma public est
+`plugins.json` est l’unique source de vérité des plugins inclus dans YuzuCord. Son schéma public est
 `plugins.schema.json` (version 2).
 
 Le matérialiseur résout chaque entrée dans un dossier indépendant :
@@ -31,8 +31,8 @@ catalog/
 ```
 
 Les `mappings` composent le contenu final du plugin. Ils permettent d’ajouter son dossier, une bibliothèque
-partagée et la licence. Le matérialiseur génère ensuite automatiquement le petit wrapper de distribution qui
-enregistre les `distributionTags` dans Vencord :
+partagée et la licence. Le matérialiseur génère ensuite automatiquement le petit wrapper de distribution et
+le tag correspondant à la provenance déclarée :
 
 ```json
 {
@@ -50,7 +50,7 @@ enregistre les `distributionTags` dans Vencord :
   ],
   "entrypoint": "index.tsx",
   "settingsKey": "MonPlugin",
-  "distributionTags": ["YuzuMod"],
+  "provenance": "yuzuctus",
   "dependencies": [],
   "conflicts": [],
   "license": "GPL-3.0-or-later",
@@ -99,8 +99,9 @@ la reproductibilité, pas l’innocuité. La revue humaine reste obligatoire.
 - une dépendance absente ou un cycle bloque le build ;
 - `conflicts` bloque une combinaison explicitement incompatible ;
 - `settingsKey` permet à l’installateur de retirer uniquement les réglages des plugins gérés.
-- `distributionTags` ajoute automatiquement des tags visibles et filtrables dans le gestionnaire Vencord,
-  même lorsque le plugin vient d’un dépôt externe.
+- `provenance: "yuzuctus"` ajoute le tag `YuzuMod`, réservé aux plugins créés par Yuzuctus ;
+- `provenance: "thirdParty"` ajoute le tag `ThirdParty` aux intégrations externes, sans les présenter comme
+  des créations Yuzuctus ou des plugins Vencord officiels.
 
 ## Vérifier une modification
 

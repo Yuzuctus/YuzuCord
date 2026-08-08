@@ -1,4 +1,4 @@
-name: Yuzuctus Vencord compatibility and installer tests
+name: YuzuCord compatibility and installer tests
 
 on:
   push:
@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Check out Yuzuctus Vencord distribution
+      - name: Check out YuzuCord distribution
         uses: actions/checkout@v5
         with:
           path: distribution
@@ -78,7 +78,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
-      - name: Check out Yuzuctus Vencord distribution
+      - name: Check out YuzuCord distribution
         uses: actions/checkout@v5
         with:
           path: distribution
@@ -122,7 +122,7 @@ jobs:
       - name: Upload test executable
         uses: actions/upload-artifact@v5
         with:
-          name: YuzuctusVencordSetup-ci
-          path: distribution/artifacts/setup/YuzuctusVencordSetup.exe
+          name: YuzuCordSetup-ci
+          path: distribution/artifacts/setup/YuzuCordSetup.exe
           if-no-files-found: error
           retention-days: 7

@@ -61,6 +61,8 @@ public sealed class PluginManifest
 
     public string SettingsKey { get; init; } = "";
 
+    public string Provenance { get; init; } = "";
+
     public string[] DistributionTags { get; init; } = [];
 
     public string[] Dependencies { get; init; } = [];
@@ -80,9 +82,9 @@ public sealed class BundleManifest
 {
     public int SchemaVersion { get; init; } = 1;
 
-    public string ProductId { get; init; } = "RandomFavorites";
+    public string ProductId { get; init; } = "YuzuctusVencord";
 
-    public string ProductName { get; init; } = "RandomFavorites";
+    public string ProductName { get; init; } = "YuzuCord";
 
     public string Version { get; init; } = "";
 

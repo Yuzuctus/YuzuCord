@@ -1,4 +1,4 @@
-name: Publish Yuzuctus Vencord beta release
+name: Publish YuzuCord beta release
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: yuzuctus-vencord-beta-release-assets
+  group: yuzucord-beta-release-assets
   cancel-in-progress: false
 
 jobs:
@@ -19,7 +19,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 40
     steps:
-      - name: Check out Yuzuctus Vencord distribution
+      - name: Check out YuzuCord distribution
         uses: actions/checkout@v5
         with:
           path: distribution
@@ -94,14 +94,14 @@ jobs:
           dotnet publish distribution/installer/RandomFavorites.Setup/RandomFavorites.Setup.csproj `
             -c Release -r win-x64 --self-contained true `
             -p:Version=$version `
-            -p:YuzuctusVencordReleaseTag=$env:GITHUB_REF_NAME `
+            -p:YuzuCordReleaseTag=$env:GITHUB_REF_NAME `
             -o release-assets/setup
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Copy-Item -LiteralPath release-assets/setup/YuzuctusVencordSetup.exe `
-            -Destination release-assets/YuzuctusVencordSetup.exe
-          $setupPath = Join-Path $PWD "release-assets/YuzuctusVencordSetup.exe"
+          Copy-Item -LiteralPath release-assets/setup/YuzuCordSetup.exe `
+            -Destination release-assets/YuzuCordSetup.exe
+          $setupPath = Join-Path $PWD "release-assets/YuzuCordSetup.exe"
           $setupHash = (Get-FileHash -LiteralPath $setupPath -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$setupHash  YuzuctusVencordSetup.exe" |
+          "$setupHash  YuzuCordSetup.exe" |
             Set-Content -LiteralPath "$setupPath.sha256" -Encoding ascii -NoNewline
 
       - name: Run installer safety smoke tests
@@ -116,13 +116,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create $env:GITHUB_REF_NAME `
-            release-assets/YuzuctusVencordSetup.exe `
-            release-assets/YuzuctusVencordSetup.exe.sha256 `
-            release-assets/YuzuctusVencordBundle.zip `
-            release-assets/YuzuctusVencordBundle.zip.sha256 `
-            release-assets/YuzuctusVencordBundle.manifest.json `
+            release-assets/YuzuCordSetup.exe `
+            release-assets/YuzuCordSetup.exe.sha256 `
+            release-assets/YuzuCordBundle.zip `
+            release-assets/YuzuCordBundle.zip.sha256 `
+            release-assets/YuzuCordBundle.manifest.json `
             --repo $env:GITHUB_REPOSITORY `
-            --title "Yuzuctus Vencord $env:GITHUB_REF_NAME" `
+            --title "YuzuCord $env:GITHUB_REF_NAME" `
             --generate-notes `
             --prerelease `
             --verify-tag

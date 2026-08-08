@@ -8,7 +8,7 @@
       "source": {
         "type": "local",
         "path": ".",
-        "repository": "https://github.com/Yuzuctus/RandomFavorites.git"
+        "repository": "https://github.com/Yuzuctus/YuzuCord.git"
       },
       "mappings": [
         {
@@ -30,9 +30,7 @@
       ],
       "entrypoint": "index.tsx",
       "settingsKey": "RandomFavorites",
-      "distributionTags": [
-        "YuzuMod"
-      ],
+      "provenance": "yuzuctus",
       "dependencies": [],
       "conflicts": [],
       "license": "GPL-3.0-or-later",
@@ -46,7 +44,7 @@
       "source": {
         "type": "local",
         "path": ".",
-        "repository": "https://github.com/Yuzuctus/RandomFavorites.git"
+        "repository": "https://github.com/Yuzuctus/YuzuCord.git"
       },
       "mappings": [
         {
@@ -64,9 +62,7 @@
       ],
       "entrypoint": "index.tsx",
       "settingsKey": "SoundboardChat",
-      "distributionTags": [
-        "YuzuMod"
-      ],
+      "provenance": "yuzuctus",
       "dependencies": [],
       "conflicts": [],
       "license": "GPL-3.0-or-later",

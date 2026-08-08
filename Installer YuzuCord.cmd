@@ -1,6 +1,6 @@
 @echo off
 setlocal
-title Yuzuctus Vencord - Installation
+title YuzuCord - Installation
 
 set "MANAGER_SCRIPT=%~dp0scripts\RandomFavoritesManager.ps1"
 
@@ -10,8 +10,8 @@ if not exist "%MANAGER_SCRIPT%" (
     echo  Le fichier suivant est manquant :
     echo %MANAGER_SCRIPT%
     echo.
-    echo  Extrais completement le ZIP Yuzuctus Vencord, puis relance
-    echo  "Installer Yuzuctus Vencord.cmd" depuis le dossier extrait.
+    echo  Extrais completement le ZIP YuzuCord, puis relance
+    echo  "Installer YuzuCord.cmd" depuis le dossier extrait.
     set "EXIT_CODE=1"
     goto :finish
 )
@@ -20,5 +20,5 @@ powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%MANAGER_SCRIPT
 set "EXIT_CODE=%ERRORLEVEL%"
 
 :finish
-if not defined YUZUCTUS_VENCORD_NO_PAUSE pause
+if not defined YUZUCORD_NO_PAUSE pause
 exit /b %EXIT_CODE%

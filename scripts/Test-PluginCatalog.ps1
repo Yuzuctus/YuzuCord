@@ -45,6 +45,8 @@ function New-PluginDefinition {
         [string]$Id,
         [object]$Source,
         [object[]]$Mappings,
+        [ValidateSet("yuzuctus", "thirdParty")]
+        [string]$Provenance = "yuzuctus",
         [string[]]$Dependencies = @()
     )
 
@@ -55,7 +57,7 @@ function New-PluginDefinition {
         mappings = $Mappings
         entrypoint = "index.tsx"
         settingsKey = $Id
-        distributionTags = @("YuzuMod")
+        provenance = $Provenance
         dependencies = $Dependencies
         conflicts = @()
         license = "GPL-3.0-or-later"
@@ -115,6 +117,7 @@ try {
             review = [ordered]@{ approvedBy = "Yuzuctus"; reviewedAt = "2026-08-08" }
         }) `
         -Mappings @([ordered]@{ from = "."; to = "." }) `
+        -Provenance "thirdParty" `
         -Dependencies @("localPlugin")
     Save-Json ([ordered]@{
         schemaVersion = 2
@@ -150,8 +153,13 @@ try {
     Assert-True (Test-Path -LiteralPath (Join-Path $vencordRoot "src\userplugins\externalPlugin\index.tsx")) "external plugin should be materialized"
     Assert-True (Test-Path -LiteralPath (Join-Path $vencordRoot "src\userplugins\externalPlugin\index.yuzuctus-source.tsx")) "the original external entrypoint should be preserved beside its wrapper"
     Assert-True (
-        (Get-Content -LiteralPath (Join-Path $vencordRoot "src\userplugins\externalPlugin\index.tsx") -Raw) -match 'YuzuMod'
-    ) "the generated entrypoint should register the distribution tag"
+        (Get-Content -LiteralPath (Join-Path $vencordRoot "src\userplugins\localPlugin\index.tsx") -Raw) -match 'YuzuMod'
+    ) "a Yuzuctus plugin should receive the YuzuMod tag"
+    Assert-True (
+        (Get-Content -LiteralPath (Join-Path $vencordRoot "src\userplugins\externalPlugin\index.tsx") -Raw) -match 'ThirdParty'
+    ) "a third-party plugin should receive the ThirdParty tag"
+    Assert-True ($first.plugins[0].provenance -eq "yuzuctus") "the resolved manifest should preserve Yuzuctus provenance"
+    Assert-True ($first.plugins[1].provenance -eq "thirdParty") "the resolved manifest should preserve third-party provenance"
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $vencordRoot "src\userplugins\stalePlugin"))) "previously managed stale plugin should be removed"
     Assert-True (Test-Path -LiteralPath (Join-Path $vencordRoot "src\userplugins\unmanagedPlugin\marker.txt")) "unmanaged userplugin should be preserved"
 

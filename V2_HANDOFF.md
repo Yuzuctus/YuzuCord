@@ -1,10 +1,10 @@
-# Passation V2 — Yuzuctus Vencord
+# Passation V2 — YuzuCord
 
-Ce dépôt n’est plus un simple installateur de RandomFavorites. C’est une distribution Windows de Vencord
+Ce dépôt n’est plus un simple installateur de RandomFavorites. YuzuCord est une distribution Windows de Vencord
 construite à partir du Vencord officiel courant et d’un catalogue de plugins Yuzuctus.
 
 La distribution reste beta-only. `main` est la branche par défaut et `beta-v2` la branche de préparation des
-betas. Le dépôt GitHub conserve pour le moment son nom historique `Yuzuctus/RandomFavorites`.
+betas. Le dépôt GitHub public est `Yuzuctus/YuzuCord`.
 
 Les branches de travail suivent `feature/<nom>` ou `fix/<nom>`. Ne pas créer de branche préfixée par le nom
 d’un outil ou d’un assistant.
@@ -49,8 +49,8 @@ Chaque entrée contient :
 - une source `local` ou `git` ;
 - des `mappings` source → destination ;
 - un point d’entrée et un fichier de licence ;
-- des `distributionTags`, actuellement `YuzuMod`, injectés automatiquement dans le registre et les métadonnées
-  du plugin ;
+- une provenance `yuzuctus` ou `thirdParty`, transformée automatiquement en tag `YuzuMod` ou `ThirdParty`
+  dans le registre et les métadonnées du plugin ;
 - des dépendances et conflits explicites.
 
 Une source Git externe doit utiliser un dépôt GitHub public en HTTPS, un commit complet, une empreinte SHA-256
@@ -106,7 +106,7 @@ plugin. L’installateur continue de lire les anciens schémas 1 et 2.
 
 ## Installateur et manager
 
-Le produit visible est Yuzuctus Vencord, même si certains namespaces C# et le nom
+Le produit visible est YuzuCord, même si certains namespaces C#, l’identifiant interne `YuzuctusVencord` et le nom
 `RandomFavoritesManager.ps1` restent historiques pour préserver la compatibilité.
 
 L’installateur WPF :

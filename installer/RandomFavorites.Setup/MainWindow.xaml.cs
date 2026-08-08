@@ -312,7 +312,7 @@ public partial class MainWindow : Window
         if (_openAsarInstalled && !_desiredOpenAsar)
             return "Sera supprimé lors de l'application des changements";
         if (!_openAsarInstalled && _desiredOpenAsar)
-            return "Sera installé avec Yuzuctus Vencord";
+            return "Sera installé avec YuzuCord";
         if (_openAsarInstalled)
             return "Installé · démarrage de Discord plus rapide";
         return "Optionnel · démarrage de Discord plus rapide";
@@ -457,7 +457,7 @@ public partial class MainWindow : Window
                     var current = _result ?? new InstallResult(
                         true,
                         "Installation terminée",
-                        "Yuzuctus Vencord est prêt.");
+                        "YuzuCord est prêt.");
                     _result = TryStartDiscord(discord, current);
                     ApplyViewState();
                 }
@@ -512,7 +512,7 @@ public partial class MainWindow : Window
         if (_isBusy || SelectedDiscord is null) return;
         var dialog = new ConfirmationDialog(
             "Réparer l'installation",
-            "La build Yuzuctus Vencord sera téléchargée, vérifiée puis réappliquée. Vos réglages seront conservés. Discord sera fermé pendant l'opération.",
+            "La build YuzuCord sera téléchargée, vérifiée puis réappliquée. Vos réglages seront conservés. Discord sera fermé pendant l'opération.",
             "Réparer")
         {
             Owner = this,

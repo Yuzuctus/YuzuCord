@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/Yuzuctus/RandomFavorites/blob/beta-v2/catalog/plugins.schema.json",
-  "title": "Yuzuctus Vencord plugin catalog",
+  "$id": "https://github.com/Yuzuctus/YuzuCord/blob/beta-v2/catalog/plugins.schema.json",
+  "title": "YuzuCord plugin catalog",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "plugins"],
@@ -73,7 +73,7 @@
         "mappings",
         "entrypoint",
         "settingsKey",
-        "distributionTags",
+        "provenance",
         "dependencies",
         "conflicts",
         "license",
@@ -92,14 +92,9 @@
         },
         "entrypoint": { "$ref": "#/$defs/safePath" },
         "settingsKey": { "type": "string" },
-        "distributionTags": {
-          "type": "array",
-          "minItems": 1,
-          "uniqueItems": true,
-          "items": {
-            "type": "string",
-            "pattern": "^[A-Za-z][A-Za-z0-9 -]{0,31}$"
-          }
+        "provenance": {
+          "type": "string",
+          "enum": ["yuzuctus", "thirdParty"]
         },
         "dependencies": {
           "type": "array",

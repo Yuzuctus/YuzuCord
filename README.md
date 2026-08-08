@@ -1,10 +1,10 @@
-# Yuzuctus Vencord
+# YuzuCord
 
 Une distribution personnalisée de Vencord pour Windows, actuellement publiée uniquement en beta.
 
 ## Installation
 
-1. Télécharge `YuzuctusVencordSetup.exe` depuis la dernière release beta GitHub.
+1. Télécharge `YuzuCordSetup.exe` depuis la dernière release beta GitHub.
 2. Ouvre-le et choisis ta version de Discord.
 3. Active OpenAsar si tu souhaites cette optimisation facultative.
 4. Clique sur **Installer**.
@@ -40,9 +40,9 @@ sans un clic explicite.
 Les réglages des deux plugins sont indépendants et s’affichent en français lorsque Discord est en français,
 sinon en anglais.
 
-Les plugins intégrés par cette distribution portent le tag **YuzuMod**. Il apparaît dans leurs informations et
-dans le filtre par tags de la page des plugins, afin de les distinguer immédiatement des plugins Vencord
-officiels.
+Les plugins créés par Yuzuctus portent le tag **YuzuMod**. Les plugins provenant d'autres développeurs portent
+le tag **ThirdParty**. Ces tags apparaissent dans les informations et les filtres de Vencord afin de distinguer
+clairement les créations Yuzuctus, les intégrations externes et les plugins Vencord officiels.
 
 ## Mettre à jour, réparer ou désinstaller
 
@@ -78,5 +78,5 @@ Les préfixes propres aux outils ou aux assistants ne sont pas utilisés dans ce
 - les permissions Discord ne sont jamais contournées ;
 - tout plugin externe exige une licence, un commit immuable, une empreinte et une revue humaine.
 
-Yuzuctus Vencord et les plugins inclus dans ce dépôt sont publiés sous licence `GPL-3.0-or-later`. Les composants
+YuzuCord et les plugins inclus dans ce dépôt sont publiés sous licence `GPL-3.0-or-later`. Les composants
 tiers du bundle sont listés dans `installer/THIRD_PARTY_NOTICES.md`.

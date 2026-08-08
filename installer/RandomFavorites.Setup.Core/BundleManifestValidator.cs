@@ -43,7 +43,7 @@ public static class BundleManifestValidator
         else
         {
             if (!string.Equals(manifest.ProductId, "YuzuctusVencord", StringComparison.Ordinal)
-                || !string.Equals(manifest.ProductName, "Yuzuctus Vencord", StringComparison.Ordinal)
+                || manifest.ProductName is not ("YuzuCord" or "Yuzuctus Vencord")
                 || !Regex.IsMatch(manifest.DistributionCommit, "^[0-9a-fA-F]{40}$")
                 || !Regex.IsMatch(manifest.PluginsDigest, "^[0-9a-fA-F]{64}$")
                 || manifest.Plugins is null
@@ -74,12 +74,13 @@ public static class BundleManifestValidator
                     && (manifest.CatalogSchemaVersion != 2
                         || plugin.SourceType is not ("local" or "git")
                         || !Regex.IsMatch(plugin.SourceDigest, "^[0-9a-fA-F]{64}$")
+                        || plugin.Provenance is not ("yuzuctus" or "thirdParty")
                         || plugin.DistributionTags is null
-                        || plugin.DistributionTags.Length == 0
-                        || plugin.DistributionTags.Distinct(StringComparer.Ordinal).Count()
-                            != plugin.DistributionTags.Length
-                        || plugin.DistributionTags.Any(tag =>
-                            !Regex.IsMatch(tag, "^[A-Za-z][A-Za-z0-9 -]{0,31}$"))
+                        || plugin.DistributionTags.Length != 1
+                        || !string.Equals(
+                            plugin.DistributionTags[0],
+                            plugin.Provenance == "yuzuctus" ? "YuzuMod" : "ThirdParty",
+                            StringComparison.Ordinal)
                         || plugin.Dependencies is null
                         || plugin.Conflicts is null
                         || plugin.Dependencies.Any(dependency =>

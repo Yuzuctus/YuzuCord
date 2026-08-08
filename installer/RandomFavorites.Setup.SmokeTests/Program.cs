@@ -14,7 +14,7 @@ var tests = new (string Name, Action Run)[]
     ("latest release metadata is read without downloading the bundle", TestLatestManifest),
     ("beta release URLs target the beta tag", TestBetaReleaseUrls),
     ("beta manifest versions are accepted", TestBetaManifestVersion),
-    ("catalog manifests validate the Yuzuctus Vencord identity", TestCatalogManifest),
+    ("catalog manifests validate the YuzuCord identity", TestCatalogManifest),
     ("safe deletion guard rejects broad and sibling paths", TestSafeDeleteGuard),
     ("installer state rejects payload paths outside its version directory", TestStatePathGuard),
     ("legacy RandomFavorites state migrates to the branded payload root", TestLegacyStateMigration),
@@ -53,7 +53,7 @@ return failures == 0 ? 0 : 1;
 static void TestChecksumParser()
 {
     const string hash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    Assert(ReleaseClient.ParseSha256($"{hash}  YuzuctusVencordBundle.zip\n") == hash);
+    Assert(ReleaseClient.ParseSha256($"{hash}  YuzuCordBundle.zip\n") == hash);
     AssertThrows<InvalidDataException>(() => ReleaseClient.ParseSha256("not-a-checksum"));
 }
 
@@ -126,7 +126,7 @@ static void TestBetaReleaseUrls()
 
     Assert(manifest.Version == expected.Version);
     Assert(handler.LastRequestUri?.AbsolutePath ==
-        "/Yuzuctus/RandomFavorites/releases/download/v2-beta1/YuzuctusVencordBundle.manifest.json");
+        "/Yuzuctus/YuzuCord/releases/download/v2-beta1/YuzuCordBundle.manifest.json");
 }
 
 static void TestBetaManifestVersion()
@@ -140,7 +140,13 @@ static void TestCatalogManifest()
 {
     var manifest = CreateCatalogManifest("v2-beta1", 'a', 'b');
     BundleManifestValidator.Validate(manifest);
+    BundleManifestValidator.Validate(CreateCatalogManifest(
+        "v2-beta1",
+        'a',
+        'b',
+        "Yuzuctus Vencord"));
     Assert(manifest.ProductId == "YuzuctusVencord");
+    Assert(manifest.ProductName == "YuzuCord");
     Assert(manifest.Plugins.Length == 2);
     Assert(manifest.Plugins[0].Id == "randomFavorites");
     Assert(manifest.Plugins[1].Id == "soundboardChat");
@@ -629,11 +635,15 @@ static BundleManifest CreateManifest(string version, char pluginCommit, char ven
     BuiltAtUtc = DateTimeOffset.UtcNow,
 };
 
-static BundleManifest CreateCatalogManifest(string version, char pluginCommit, char vencordCommit) => new()
+static BundleManifest CreateCatalogManifest(
+    string version,
+    char pluginCommit,
+    char vencordCommit,
+    string productName = "YuzuCord") => new()
 {
     SchemaVersion = 3,
     ProductId = "YuzuctusVencord",
-    ProductName = "Yuzuctus Vencord",
+    ProductName = productName,
     Version = version,
     VencordRepository = "https://github.com/Vendicated/Vencord.git",
     VencordCommit = new string(vencordCommit, 40),
@@ -647,13 +657,14 @@ static BundleManifest CreateCatalogManifest(string version, char pluginCommit, c
         {
             Id = "randomFavorites",
             DisplayName = "RandomFavorites",
-            Repository = "https://github.com/Yuzuctus/RandomFavorites.git",
+            Repository = "https://github.com/Yuzuctus/YuzuCord.git",
             Commit = new string(pluginCommit, 40),
             SourceType = "local",
             SourceDigest = new string('d', 64),
             Entrypoint = "index.tsx",
             Files = ["index.tsx", "_shared/soundboard/src/runtime.ts", "LICENSE"],
             SettingsKey = "RandomFavorites",
+            Provenance = "yuzuctus",
             DistributionTags = ["YuzuMod"],
             Dependencies = [],
             Conflicts = [],
@@ -666,13 +677,14 @@ static BundleManifest CreateCatalogManifest(string version, char pluginCommit, c
         {
             Id = "soundboardChat",
             DisplayName = "SoundboardChat",
-            Repository = "https://github.com/Yuzuctus/RandomFavorites.git",
+            Repository = "https://github.com/Yuzuctus/YuzuCord.git",
             Commit = new string(pluginCommit, 40),
             SourceType = "local",
             SourceDigest = new string('e', 64),
             Entrypoint = "index.tsx",
             Files = ["index.tsx", "_shared/soundboard/src/runtime.ts", "LICENSE"],
             SettingsKey = "SoundboardChat",
+            Provenance = "yuzuctus",
             DistributionTags = ["YuzuMod"],
             Dependencies = [],
             Conflicts = [],
@@ -739,7 +751,7 @@ sealed class StaticReleaseHandler(byte[] payload, string hash) : HttpMessageHand
         HttpContent content = request.RequestUri?.AbsolutePath.EndsWith(
             ".sha256",
             StringComparison.OrdinalIgnoreCase) == true
-            ? new StringContent($"{hash}  YuzuctusVencordBundle.zip\n")
+            ? new StringContent($"{hash}  YuzuCordBundle.zip\n")
             : new ByteArrayContent(payload);
 
         return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)

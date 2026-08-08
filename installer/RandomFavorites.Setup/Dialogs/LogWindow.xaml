@@ -1,13 +1,13 @@
 <Window x:Class="RandomFavorites.Setup.Dialogs.LogWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Journal Yuzuctus Vencord"
+        Title="Journal YuzuCord"
         Width="660" Height="460" MinWidth="520" MinHeight="360"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None" ResizeMode="CanResizeWithGrip"
         ShowInTaskbar="False"
         Background="{StaticResource WindowBackground}"
-        AutomationProperties.Name="Journal détaillé Yuzuctus Vencord"
+        AutomationProperties.Name="Journal détaillé YuzuCord"
         PreviewKeyDown="Window_OnPreviewKeyDown">
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="58" ResizeBorderThickness="6" CornerRadius="10" GlassFrameThickness="0" />

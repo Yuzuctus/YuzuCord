@@ -12,13 +12,13 @@
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <DebugType>embedded</DebugType>
-    <AssemblyName>YuzuctusVencordSetup</AssemblyName>
+    <AssemblyName>YuzuCordSetup</AssemblyName>
     <RootNamespace>RandomFavorites.Setup</RootNamespace>
     <ApplicationIcon>Assets\RandomFavorites.ico</ApplicationIcon>
-    <YuzuctusVencordReleaseTag Condition="'$(YuzuctusVencordReleaseTag)' == ''">latest</YuzuctusVencordReleaseTag>
+    <YuzuCordReleaseTag Condition="'$(YuzuCordReleaseTag)' == ''">latest</YuzuCordReleaseTag>
   </PropertyGroup>
   <ItemGroup>
-    <AssemblyMetadata Include="YuzuctusVencordReleaseTag" Value="$(YuzuctusVencordReleaseTag)" />
+    <AssemblyMetadata Include="YuzuCordReleaseTag" Value="$(YuzuCordReleaseTag)" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\RandomFavorites.Setup.Core\RandomFavorites.Setup.Core.csproj" />

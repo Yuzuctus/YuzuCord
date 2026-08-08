@@ -11,8 +11,8 @@ if not exist "%MANAGER_SCRIPT%" (
     echo %MANAGER_SCRIPT%
     echo.
     echo  Cette ancienne entree est conservee pour les installations existantes.
-    echo  Extrais completement le ZIP Yuzuctus Vencord, puis lance
-    echo  "Installer Yuzuctus Vencord.cmd" depuis le dossier extrait.
+    echo  Extrais completement le ZIP YuzuCord, puis lance
+    echo  "Installer YuzuCord.cmd" depuis le dossier extrait.
     set "EXIT_CODE=1"
     goto :finish
 )
