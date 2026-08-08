@@ -1,40 +1,48 @@
-# Yuzuctus Vencord
+# YuzuCord
 
-Une distribution personnalisée de Vencord pour Windows. Le catalogue actuel contient uniquement le plugin
-**RandomFavorites**, mais la compilation et l'installateur sont déjà structurés pour accueillir plusieurs
-plugins indépendants.
+Une distribution personnalisée de Vencord pour Windows, actuellement publiée uniquement en beta.
 
-## Statut
+## Installation
 
-Le projet est actuellement distribué uniquement en **beta**. La release de cette migration utilise le tag
-`v2-beta1`.
-
-## Installer sur Windows
-
-1. Télécharge **YuzuctusVencordSetup.exe** depuis la release beta officielle.
-2. Ouvre le fichier et choisis ta version de Discord.
-3. Coche **OpenAsar** si tu veux aussi installer cette optimisation facultative.
+1. Télécharge `YuzuCordSetup.exe` depuis la dernière release beta GitHub.
+2. Ouvre-le et choisis ta version de Discord.
+3. Active OpenAsar si tu souhaites cette optimisation facultative.
 4. Clique sur **Installer**.
-5. Dans Discord, va dans `Paramètres > Vencord > Plugins` et active **RandomFavorites**.
+5. Dans `Paramètres Discord > Vencord > Plugins`, active les plugins Yuzuctus souhaités.
 
-Git, Node.js et pnpm ne sont pas nécessaires pour l'installation du bundle beta. L'installateur vérifie le
-bundle avec SHA-256 avant de modifier Discord.
+Git, Node.js et pnpm ne sont pas nécessaires avec l’installateur. Le bundle et ses composants sont contrôlés
+par SHA-256 avant l’installation.
 
-> L'application n'est pas encore signée. Si Windows SmartScreen apparaît, vérifie que le fichier vient bien
-> de la page Releases officielle, puis choisis **Informations complémentaires > Exécuter quand même**.
+L’application n’est pas encore signée. Si SmartScreen apparaît, vérifie que l’EXE vient bien de la page
+Releases officielle avant de choisir **Informations complémentaires > Exécuter quand même**.
 
-## Plugin actuel
+## Plugins inclus
 
-**RandomFavorites** envoie un GIF, une emote, un sticker ou un son de soundboard aléatoire depuis Discord.
+### RandomFavorites
 
-- Clic gauche sur le dé : effectue le tirage configuré.
-- Clic droit sur le dé : choisit la catégorie et le mode de tirage.
-- L'aperçu sécurisé demande une confirmation avant tout envoi ou toute lecture.
-- Les réglages sont en français si Discord est en français, sinon en anglais.
+Envoie un GIF favori, une emote, un sticker ou un son de Soundboard aléatoire.
 
-Les fichiers du plugin restent dans `Plugin RandomFavorites`. Le catalogue `catalog/plugins.json` décrit son
-identifiant, sa source, son point d'entrée, sa licence et les fichiers à intégrer. Un futur plugin sera ajouté
-comme une nouvelle entrée sans modifier le cœur de l'installateur.
+- clic gauche sur le dé : lance le tirage configuré ;
+- clic droit : sélectionne les catégories et le mode de tirage ;
+- aperçu sécurisé facultatif avant l’envoi ;
+- répartition équitable entre les catégories sélectionnées et anti-répétition adaptatif ;
+- Soundboard aléatoire disponible dans le chat et dans le sélecteur vocal FavoriteRandom.
+
+### SoundboardChat
+
+Ajoute **Soundboard** comme quatrième onglet natif à côté des GIF, emotes et stickers. Un clic sur un son
+l’envoie comme fichier audio dans le salon texte actuel, sans demander d’être connecté à un vocal.
+
+Le plugin réutilise entièrement la recherche, les favoris, les catégories de serveurs, les aperçus et le style
+de Discord. Il vérifie les permissions d’envoi et de pièces jointes avant tout upload. Aucun son n’est envoyé
+sans un clic explicite.
+
+Les réglages des deux plugins sont indépendants et s’affichent en français lorsque Discord est en français,
+sinon en anglais.
+
+Les plugins créés par Yuzuctus portent le tag **YuzuMod**. Les plugins provenant d'autres développeurs portent
+le tag **ThirdParty**. Ces tags apparaissent dans les informations et les filtres de Vencord afin de distinguer
+clairement les créations Yuzuctus, les intégrations externes et les plugins Vencord officiels.
 
 ## Mettre à jour, réparer ou désinstaller
 
@@ -42,36 +50,33 @@ Rouvre le même EXE beta :
 
 - **Installer / Mettre à jour** récupère la dernière build beta vérifiée ;
 - **Réparer** réapplique la build sans supprimer les réglages ;
-- **Désinstaller** peut retirer les plugins gérés, Vencord en conservant ses données, ou tout supprimer.
+- **Désinstaller** peut retirer seulement les plugins gérés, Vencord en conservant ses données, ou l’ensemble.
 
-OpenAsar reste facultatif. Les réglages des plugins gérés sont sauvegardés avant leur suppression. Les anciennes
-installations RandomFavorites restent reconnues comme installations legacy ; la nouvelle distribution utilise
-son propre dossier `%LOCALAPPDATA%\\YuzuctusVencord`.
+Les réglages supprimés sont sauvegardés. OpenAsar reste facultatif et indépendant des plugins.
 
 ## Développement
 
-Le projet ne contient pas de dépendances Node locales. Il est matérialisé dans un checkout Vencord avant la
-compilation :
+Les sources sont séparées dans `plugins/<pluginId>` et les fonctions communes dans `shared/`. Le catalogue
+compose chaque plugin dans un Vencord officiel courant avant les tests et le build :
 
 ```text
 vencord/src/userplugins/<pluginId>
 ```
 
-Le script `scripts/Materialize-Plugins.ps1` lit le catalogue et copie chaque plugin dans son propre dossier.
-Le pipeline beta exécute ensuite les tests, ESLint, le typecheck et le build Vencord.
+Le catalogue accepte les plugins développés ici et les plugins externes figés sur un commit et une empreinte.
+La procédure complète se trouve dans [catalog/README.md](catalog/README.md). L’architecture générale et la
+passation technique se trouvent dans [V2_HANDOFF.md](V2_HANDOFF.md).
 
-Pour reprendre l'architecture et le travail avec une autre IA, lire `V2_HANDOFF.md`.
+Les branches de travail utilisent `feature/<nom>` pour une fonctionnalité et `fix/<nom>` pour une correction.
+Les préfixes propres aux outils ou aux assistants ne sont pas utilisés dans ce dépôt.
 
 ## Sécurité et licences
 
-- aucun token Discord n'est lu, stocké ou transmis par cette distribution ;
-- aucune télémétrie ni publicité n'est ajoutée par l'installateur ;
-- rien n'est envoyé sans action explicite de l'utilisateur ;
-- les plugins tiers futurs devront être épinglés sur un commit et déclarer leur licence ;
-- un plugin Vencord s'exécute dans le processus Discord et doit donc être approuvé avant son intégration.
+- aucun token Discord n’est lu, stocké ou transmis ;
+- aucune télémétrie ni publicité n’est ajoutée ;
+- aucun envoi n’a lieu sans action explicite ;
+- les permissions Discord ne sont jamais contournées ;
+- tout plugin externe exige une licence, un commit immuable, une empreinte et une revue humaine.
 
-Yuzuctus Vencord et RandomFavorites sont publiés sous licence `GPL-3.0-or-later`. Les composants tiers sont
-documentés dans `installer/THIRD_PARTY_NOTICES.md`.
-
-Le fichier `Installer RandomFavorites.cmd` est conservé comme ancien lanceur. La nouvelle entrée recommandée
-est `Installer Yuzuctus Vencord.cmd`.
+YuzuCord et les plugins inclus dans ce dépôt sont publiés sous licence `GPL-3.0-or-later`. Les composants
+tiers du bundle sont listés dans `installer/THIRD_PARTY_NOTICES.md`.

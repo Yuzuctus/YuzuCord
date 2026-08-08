@@ -15,7 +15,7 @@ import {
     MAX_SOUNDBOARD_FILE_NAME_LENGTH,
     normalizeSoundboardFileName,
     soundboardAudioFormatFromMagicBytes,
-} from "./soundboardAttachment";
+} from "../src/attachment";
 
 test("creates a minimal snapshot with the default guild id", () => {
     assert.deepEqual(

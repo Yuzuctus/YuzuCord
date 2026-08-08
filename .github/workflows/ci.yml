@@ -1,8 +1,8 @@
-name: Yuzuctus Vencord compatibility and installer tests
+name: YuzuCord compatibility and installer tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, beta-v2]
   pull_request:
   workflow_dispatch:
   schedule:
@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Check out Yuzuctus Vencord distribution
+      - name: Check out YuzuCord distribution
         uses: actions/checkout@v5
         with:
           path: distribution
@@ -40,6 +40,10 @@ jobs:
       - name: Enable Vencord's pinned pnpm
         working-directory: vencord
         run: corepack enable && corepack install
+
+      - name: Test the modular plugin catalog
+        shell: pwsh
+        run: ./distribution/scripts/Test-PluginCatalog.ps1
 
       - name: Materialize catalog plugins
         shell: pwsh
@@ -74,7 +78,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
-      - name: Check out Yuzuctus Vencord distribution
+      - name: Check out YuzuCord distribution
         uses: actions/checkout@v5
         with:
           path: distribution
@@ -83,6 +87,25 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 8.0.x
+
+      - name: Validate PowerShell scripts
+        shell: powershell
+        run: |
+          $files = @(
+            "distribution/scripts/PluginCatalog.psm1",
+            "distribution/scripts/Materialize-Plugins.ps1",
+            "distribution/scripts/Get-PluginIntegrity.ps1",
+            "distribution/scripts/Test-PluginCatalog.ps1",
+            "distribution/scripts/Build-ReleaseBundle.ps1",
+            "distribution/scripts/RandomFavoritesManager.ps1"
+          )
+          foreach ($file in $files) {
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $file), [ref]$null, [ref]$errors
+            ) | Out-Null
+            if ($errors) { $errors | Format-List; exit 1 }
+          }
 
       - name: Build the installer
         run: dotnet build distribution/installer/RandomFavorites.Setup/RandomFavorites.Setup.csproj -c Release
@@ -99,7 +122,7 @@ jobs:
       - name: Upload test executable
         uses: actions/upload-artifact@v5
         with:
-          name: YuzuctusVencordSetup-ci
-          path: distribution/artifacts/setup/YuzuctusVencordSetup.exe
+          name: YuzuCordSetup-ci
+          path: distribution/artifacts/setup/YuzuCordSetup.exe
           if-no-files-found: error
           retention-days: 7

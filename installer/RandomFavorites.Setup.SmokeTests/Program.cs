@@ -12,9 +12,11 @@ var tests = new (string Name, Action Run)[]
     ("checksum parser selects the requested release asset", TestNamedChecksumParser),
     ("downloaded bundle is moved only after its stream is released", TestDownloadReleasesFile),
     ("latest release metadata is read without downloading the bundle", TestLatestManifest),
+    ("preview selects the newest compatible YuzuCord release", TestPreviewReleaseResolution),
+    ("incomplete tagged release reports an actionable message", TestMissingReleaseAssetMessage),
     ("beta release URLs target the beta tag", TestBetaReleaseUrls),
     ("beta manifest versions are accepted", TestBetaManifestVersion),
-    ("catalog manifests validate the Yuzuctus Vencord identity", TestCatalogManifest),
+    ("catalog manifests validate the YuzuCord identity", TestCatalogManifest),
     ("safe deletion guard rejects broad and sibling paths", TestSafeDeleteGuard),
     ("installer state rejects payload paths outside its version directory", TestStatePathGuard),
     ("legacy RandomFavorites state migrates to the branded payload root", TestLegacyStateMigration),
@@ -53,7 +55,7 @@ return failures == 0 ? 0 : 1;
 static void TestChecksumParser()
 {
     const string hash = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-    Assert(ReleaseClient.ParseSha256($"{hash}  YuzuctusVencordBundle.zip\n") == hash);
+    Assert(ReleaseClient.ParseSha256($"{hash}  YuzuCordBundle.zip\n") == hash);
     AssertThrows<InvalidDataException>(() => ReleaseClient.ParseSha256("not-a-checksum"));
 }
 
@@ -79,7 +81,9 @@ static void TestDownloadReleasesFile()
 
     try
     {
-        using var client = new ReleaseClient(new StaticReleaseHandler(payload, hash));
+        using var client = new ReleaseClient(
+            new StaticReleaseHandler(payload, hash),
+            "v2-beta2");
         var bundle = client.DownloadVerifiedBundleAsync(
                 layout,
                 progress: null,
@@ -105,7 +109,7 @@ static void TestDownloadReleasesFile()
 static void TestLatestManifest()
 {
     var expected = CreateManifest("v3.2.1", 'c', 'd');
-    using var client = new ReleaseClient(new ManifestReleaseHandler(expected));
+    using var client = new ReleaseClient(new ManifestReleaseHandler(expected), "v3.2.1");
     var manifest = client.GetLatestManifestAsync(CancellationToken.None)
         .GetAwaiter()
         .GetResult();
@@ -113,6 +117,45 @@ static void TestLatestManifest()
     Assert(manifest.Version == expected.Version);
     Assert(manifest.PluginCommit == expected.PluginCommit);
     Assert(manifest.VencordCommit == expected.VencordCommit);
+}
+
+static void TestPreviewReleaseResolution()
+{
+    var expected = CreateCatalogManifest("v2-beta2", 'c', 'd');
+    var handler = new CompatibleReleaseHandler(expected);
+    using var client = new ReleaseClient(handler, "latest");
+    var manifest = client.GetLatestManifestAsync(CancellationToken.None)
+        .GetAwaiter()
+        .GetResult();
+    _ = client.GetLatestManifestAsync(CancellationToken.None)
+        .GetAwaiter()
+        .GetResult();
+
+    Assert(manifest.Version == "v2-beta2");
+    Assert(handler.ReleaseListRequestCount == 1);
+    Assert(handler.ManifestRequestUri?.AbsolutePath ==
+        "/Yuzuctus/YuzuCord/releases/download/v2-beta2/YuzuCordBundle.manifest.json");
+}
+
+static void TestMissingReleaseAssetMessage()
+{
+    using var client = new ReleaseClient(new MissingReleaseAssetHandler(), "v2-beta2");
+
+    try
+    {
+        _ = client.GetLatestManifestAsync(CancellationToken.None)
+            .GetAwaiter()
+            .GetResult();
+    }
+    catch (InvalidOperationException error)
+    {
+        Assert(error.Message.Contains("v2-beta2", StringComparison.OrdinalIgnoreCase));
+        Assert(error.Message.Contains("incomplète", StringComparison.OrdinalIgnoreCase));
+        Assert(!error.Message.Contains("Response status code", StringComparison.OrdinalIgnoreCase));
+        return;
+    }
+
+    throw new InvalidOperationException("Expected an actionable release error.");
 }
 
 static void TestBetaReleaseUrls()
@@ -126,7 +169,7 @@ static void TestBetaReleaseUrls()
 
     Assert(manifest.Version == expected.Version);
     Assert(handler.LastRequestUri?.AbsolutePath ==
-        "/Yuzuctus/RandomFavorites/releases/download/v2-beta1/YuzuctusVencordBundle.manifest.json");
+        "/Yuzuctus/YuzuCord/releases/download/v2-beta1/YuzuCordBundle.manifest.json");
 }
 
 static void TestBetaManifestVersion()
@@ -140,9 +183,16 @@ static void TestCatalogManifest()
 {
     var manifest = CreateCatalogManifest("v2-beta1", 'a', 'b');
     BundleManifestValidator.Validate(manifest);
+    BundleManifestValidator.Validate(CreateCatalogManifest(
+        "v2-beta1",
+        'a',
+        'b',
+        "Yuzuctus Vencord"));
     Assert(manifest.ProductId == "YuzuctusVencord");
-    Assert(manifest.Plugins.Length == 1);
+    Assert(manifest.ProductName == "YuzuCord");
+    Assert(manifest.Plugins.Length == 2);
     Assert(manifest.Plugins[0].Id == "randomFavorites");
+    Assert(manifest.Plugins[1].Id == "soundboardChat");
 }
 
 static void TestSafeDeleteGuard()
@@ -628,16 +678,21 @@ static BundleManifest CreateManifest(string version, char pluginCommit, char ven
     BuiltAtUtc = DateTimeOffset.UtcNow,
 };
 
-static BundleManifest CreateCatalogManifest(string version, char pluginCommit, char vencordCommit) => new()
+static BundleManifest CreateCatalogManifest(
+    string version,
+    char pluginCommit,
+    char vencordCommit,
+    string productName = "YuzuCord") => new()
 {
-    SchemaVersion = 2,
+    SchemaVersion = 3,
     ProductId = "YuzuctusVencord",
-    ProductName = "Yuzuctus Vencord",
+    ProductName = productName,
     Version = version,
     VencordRepository = "https://github.com/Vendicated/Vencord.git",
     VencordCommit = new string(vencordCommit, 40),
     DistributionCommit = new string(pluginCommit, 40),
     PluginCommit = new string(pluginCommit, 40),
+    CatalogSchemaVersion = 2,
     PluginsDigest = new string('c', 64),
     Plugins =
     [
@@ -645,16 +700,41 @@ static BundleManifest CreateCatalogManifest(string version, char pluginCommit, c
         {
             Id = "randomFavorites",
             DisplayName = "RandomFavorites",
-            Repository = "https://github.com/Yuzuctus/RandomFavorites.git",
+            Repository = "https://github.com/Yuzuctus/YuzuCord.git",
             Commit = new string(pluginCommit, 40),
-            SourcePath = ".",
+            SourceType = "local",
+            SourceDigest = new string('d', 64),
             Entrypoint = "index.tsx",
-            Files = ["index.tsx", "Plugin RandomFavorites"],
+            Files = ["index.tsx", "_shared/soundboard/src/runtime.ts", "LICENSE"],
             SettingsKey = "RandomFavorites",
+            Provenance = "yuzuctus",
+            DistributionTags = ["YuzuMod"],
+            Dependencies = [],
+            Conflicts = [],
             License = "GPL-3.0-or-later",
             LicenseFile = "LICENSE",
             Maintainer = "Yuzuctus",
             Status = "maintained",
+        },
+        new PluginManifest
+        {
+            Id = "soundboardChat",
+            DisplayName = "SoundboardChat",
+            Repository = "https://github.com/Yuzuctus/YuzuCord.git",
+            Commit = new string(pluginCommit, 40),
+            SourceType = "local",
+            SourceDigest = new string('e', 64),
+            Entrypoint = "index.tsx",
+            Files = ["index.tsx", "_shared/soundboard/src/runtime.ts", "LICENSE"],
+            SettingsKey = "SoundboardChat",
+            Provenance = "yuzuctus",
+            DistributionTags = ["YuzuMod"],
+            Dependencies = [],
+            Conflicts = [],
+            License = "GPL-3.0-or-later",
+            LicenseFile = "LICENSE",
+            Maintainer = "Yuzuctus",
+            Status = "experimental",
         },
     ],
     OpenAsarDigest = "sha256:" + new string('a', 64),
@@ -714,7 +794,7 @@ sealed class StaticReleaseHandler(byte[] payload, string hash) : HttpMessageHand
         HttpContent content = request.RequestUri?.AbsolutePath.EndsWith(
             ".sha256",
             StringComparison.OrdinalIgnoreCase) == true
-            ? new StringContent($"{hash}  YuzuctusVencordBundle.zip\n")
+            ? new StringContent($"{hash}  YuzuCordBundle.zip\n")
             : new ByteArrayContent(payload);
 
         return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
@@ -771,4 +851,58 @@ sealed class ManifestReleaseHandler(BundleManifest manifest) : HttpMessageHandle
             Content = new StringContent(JsonSerializer.Serialize(manifest)),
         });
     }
+}
+
+sealed class CompatibleReleaseHandler(BundleManifest manifest) : HttpMessageHandler
+{
+    public Uri? ManifestRequestUri { get; private set; }
+    public int ReleaseListRequestCount { get; private set; }
+
+    protected override Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        if (request.RequestUri?.AbsolutePath == "/repos/Yuzuctus/YuzuCord/releases")
+        {
+            ReleaseListRequestCount++;
+            return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+            {
+                Content = new StringContent("""
+                    [
+                      {
+                        "tag_name": "v1.9.4",
+                        "draft": false,
+                        "assets": [
+                          { "name": "RandomFavoritesBundle.zip" }
+                        ]
+                      },
+                      {
+                        "tag_name": "v2-beta2",
+                        "draft": false,
+                        "prerelease": true,
+                        "assets": [
+                          { "name": "YuzuCordBundle.zip" },
+                          { "name": "YuzuCordBundle.zip.sha256" },
+                          { "name": "YuzuCordBundle.manifest.json" }
+                        ]
+                      }
+                    ]
+                    """),
+            });
+        }
+
+        ManifestRequestUri = request.RequestUri;
+        return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
+        {
+            Content = new StringContent(JsonSerializer.Serialize(manifest)),
+        });
+    }
+}
+
+sealed class MissingReleaseAssetHandler : HttpMessageHandler
+{
+    protected override Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.NotFound));
 }

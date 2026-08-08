@@ -8,7 +8,7 @@ param(
     [string]$VencordRepository = "https://github.com/Vendicated/Vencord.git",
 
     [Alias("PluginRepository")]
-    [string]$DistributionRepository = "https://github.com/Yuzuctus/RandomFavorites.git",
+    [string]$DistributionRepository = "https://github.com/Yuzuctus/YuzuCord.git",
 
     [switch]$SkipInject,
 
@@ -127,7 +127,7 @@ function New-TuiStages {
         },
         [PSCustomObject]@{
             Number = 4
-            Title = Get-UiText "Updating Yuzuctus Vencord" "Mise a jour de Yuzuctus Vencord"
+            Title = Get-UiText "Updating YuzuCord" "Mise a jour de YuzuCord"
             Explanation = Get-UiText "Fetching the newest public distribution catalog." "Recuperation du catalogue public de la distribution."
             Weight = 10
             State = "Pending"
@@ -302,7 +302,7 @@ function Render-LiveTui {
             default { [ConsoleColor]::DarkCyan }
         }
 
-        $header = Format-TuiColumns "YUZUCTUS VENCORD" $outcomeLabel $innerWidth
+        $header = Format-TuiColumns "YUZUCORD" $outcomeLabel $innerWidth
         $subtitle = Format-TuiColumns `
             (Get-UiText "Vencord installation and update" "Installation et mise a jour de Vencord") `
             ("Discord " + $Branch) `
@@ -410,7 +410,7 @@ function Render-LiveTui {
         $footer = switch ($script:TuiOutcome) {
             "success" {
                 if ($script:InstalledToDiscord) {
-                    Get-UiText "Discord is ready with Yuzuctus Vencord." "Discord est pret avec Yuzuctus Vencord."
+                    Get-UiText "Discord is ready with YuzuCord." "Discord est pret avec YuzuCord."
                 } else {
                     Get-UiText "Build ready. Discord was not modified." "Compilation prete. Discord n'a pas ete modifie."
                 }
@@ -535,7 +535,7 @@ function Update-TuiActivity {
 function Write-Banner {
     Write-Host ""
     Write-Host "  +----------------------------------------------------------+" -ForegroundColor DarkCyan
-    Write-Host "  |                    YUZUCTUS VENCORD                       |" -ForegroundColor Cyan
+    Write-Host "  |                        YUZUCORD                           |" -ForegroundColor Cyan
     $subtitle = Get-UiText "Custom Vencord installation and update" "Installation et mise a jour de Vencord personnalise"
     $subtitleLine = ("  |  " + $subtitle).PadRight(61).Substring(0, 61)
     Write-Host $subtitleLine -NoNewline -ForegroundColor White
@@ -636,7 +636,7 @@ function Write-FinalSuccess {
     Write-Host "|" -ForegroundColor Green
     Write-Host "  +----------------------------------------------------------+" -ForegroundColor Green
     if ($InstalledToDiscord) {
-        Write-Host "  $(Get-UiText "Discord is ready with Yuzuctus Vencord." "Discord est pret avec Yuzuctus Vencord.")" -ForegroundColor White
+        Write-Host "  $(Get-UiText "Discord is ready with YuzuCord." "Discord est pret avec YuzuCord.")" -ForegroundColor White
     } else {
         Write-Host "  $(Get-UiText "The build is ready. Discord was not modified." "La compilation est prete. Discord n'a pas ete modifie.")" -ForegroundColor White
     }
@@ -864,7 +864,7 @@ function Get-WindowsArchitecture {
             }
         }
         default {
-            throw "Yuzuctus Vencord Manager supports 64-bit x64 and ARM64 Windows installations."
+            throw "YuzuCord Manager supports 64-bit x64 and ARM64 Windows installations."
         }
     }
 }
@@ -874,7 +874,7 @@ function New-YuzuctusVencordHttpClient {
     $client.Timeout = [TimeSpan]::FromMinutes(30)
     $null = $client.DefaultRequestHeaders.TryAddWithoutValidation(
         "User-Agent",
-        "YuzuctusVencordManager/2.0"
+        "YuzuCordManager/2.0"
     )
     return $client
 }
@@ -1254,7 +1254,20 @@ function Update-Repository {
         }
 
         $actualRemote = Invoke-ExternalCapture $script:GitExecutable @("-C", $Destination, "remote", "get-url", "origin")
-        if ((Normalize-Repository $actualRemote) -ne (Normalize-Repository $Repository)) {
+        $normalizedActualRemote = Normalize-Repository $actualRemote
+        $normalizedExpectedRemote = Normalize-Repository $Repository
+        $legacyDistributionRemote = Normalize-Repository "https://github.com/Yuzuctus/RandomFavorites.git"
+        $yuzuCordRemote = Normalize-Repository "https://github.com/Yuzuctus/YuzuCord.git"
+        $isYuzuCordRename = $normalizedActualRemote -eq $legacyDistributionRemote `
+            -and $normalizedExpectedRemote -eq $yuzuCordRemote
+
+        if ($isYuzuCordRename) {
+            Write-TechnicalLog "Migrating the distribution remote from RandomFavorites to YuzuCord."
+            Invoke-External $script:GitExecutable @(
+                "-C", $Destination,
+                "remote", "set-url", "origin", $Repository
+            )
+        } elseif ($normalizedActualRemote -ne $normalizedExpectedRemote) {
             throw "$DisplayName uses an unexpected Git remote: '$actualRemote'. Expected '$Repository'."
         }
 
@@ -1442,22 +1455,31 @@ function Write-UpdateLauncher {
         New-Item -ItemType Directory -Path $managedDirectory -Force | Out-Null
     }
 
-    $managedScript = Join-Path $managedDirectory "YuzuctusVencordManager.ps1"
+    $managedScript = Join-Path $managedDirectory "YuzuCordManager.ps1"
     Copy-Item -LiteralPath $sourceManager -Destination $managedScript -Force
 
-    $launcherPath = Join-Path $RootDirectory "Update Yuzuctus Vencord.cmd"
+    $launcherPath = Join-Path $RootDirectory "Update YuzuCord.cmd"
 
     $lines = @(
         "@echo off",
         "setlocal",
-        "title Yuzuctus Vencord - Mise a jour",
-        "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File `"%~dp0manager\YuzuctusVencordManager.ps1`" -InstallRoot `"%~dp0.`" %*",
+        "title YuzuCord - Mise a jour",
+        "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File `"%~dp0manager\YuzuCordManager.ps1`" -InstallRoot `"%~dp0.`" %*",
         "set `"EXIT_CODE=%ERRORLEVEL%`"",
-        "if not defined YUZUCTUS_VENCORD_NO_PAUSE pause",
+        "if not defined YUZUCORD_NO_PAUSE pause",
         "exit /b %EXIT_CODE%"
     )
 
     [IO.File]::WriteAllLines($launcherPath, $lines, [Text.Encoding]::ASCII)
+
+    foreach ($legacyPath in @(
+        (Join-Path $RootDirectory "Update Yuzuctus Vencord.cmd"),
+        (Join-Path $managedDirectory "YuzuctusVencordManager.ps1")
+    )) {
+        if (Test-Path -LiteralPath $legacyPath -PathType Leaf) {
+            Remove-Item -LiteralPath $legacyPath -Force
+        }
+    }
 }
 
 function Write-State {
@@ -1468,9 +1490,16 @@ function Write-State {
         [string]$DiscordBranch
     )
 
-    $catalogPath = Join-Path $DistributionDirectory "catalog\plugins.json"
-    $catalog = Get-Content -LiteralPath $catalogPath -Raw | ConvertFrom-Json
-    $pluginIds = @($catalog.plugins | ForEach-Object { [string]$_.id })
+    $resolvedManifestPath = Join-Path $VencordDirectory "src\userplugins\.yuzuctus\resolved-plugins.json"
+    if (-not (Test-Path -LiteralPath $resolvedManifestPath -PathType Leaf)) {
+        throw "The resolved plugin manifest was not found at '$resolvedManifestPath'."
+    }
+    $resolvedPlugins = Get-Content -LiteralPath $resolvedManifestPath -Raw | ConvertFrom-Json
+    if ([int]$resolvedPlugins.schemaVersion -ne 1 `
+        -or [string]$resolvedPlugins.pluginsDigest -notmatch '^[0-9a-fA-F]{64}$') {
+        throw "The resolved plugin manifest is invalid."
+    }
+    $pluginIds = @($resolvedPlugins.plugins | ForEach-Object { [string]$_.id })
     $state = [ordered]@{
         productId = "YuzuctusVencord"
         lastSuccessfulRun = [DateTime]::UtcNow.ToString("o")
@@ -1479,8 +1508,8 @@ function Write-State {
         distributionDirectory = $DistributionDirectory
         pluginIds = $pluginIds
         vencordCommit = Invoke-ExternalCapture $script:GitExecutable @("-C", $VencordDirectory, "rev-parse", "HEAD")
-        distributionCommit = Invoke-ExternalCapture $script:GitExecutable @("-C", $DistributionDirectory, "rev-parse", "HEAD")
-        pluginsDigest = (Get-FileHash -LiteralPath $catalogPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        distributionCommit = [string]$resolvedPlugins.distributionCommit
+        pluginsDigest = ([string]$resolvedPlugins.pluginsDigest).ToLowerInvariant()
     }
 
     $statePath = Join-Path $RootDirectory "manager-state.json"
@@ -1593,12 +1622,12 @@ function Main {
     Complete-Step $stageTimer
 
     $stageTimer = Write-Step 4 7 `
-        (Get-UiText "Updating Yuzuctus Vencord" "Mise a jour de Yuzuctus Vencord") `
+        (Get-UiText "Updating YuzuCord" "Mise a jour de YuzuCord") `
         (Get-UiText "Fetching the newest public distribution catalog." "Recuperation du catalogue public de la distribution.")
-    Update-Repository $DistributionRepository $distributionDirectory "Yuzuctus Vencord distribution"
+    Update-Repository $DistributionRepository $distributionDirectory "YuzuCord distribution"
     $catalogPath = Join-Path $distributionDirectory "catalog\plugins.json"
     if (-not (Test-Path -LiteralPath $catalogPath -PathType Leaf)) {
-        throw "The Yuzuctus Vencord distribution does not contain '$catalogPath'."
+        throw "The YuzuCord distribution does not contain '$catalogPath'."
     }
     Update-TuiActivity `
         (Get-UiText "Materializing catalog plugins..." "Preparation des plugins du catalogue...") `
@@ -1674,7 +1703,7 @@ function Main {
             -Force
     }
 
-    $updateLauncher = Join-Path $resolvedRoot "Update Yuzuctus Vencord.cmd"
+    $updateLauncher = Join-Path $resolvedRoot "Update YuzuCord.cmd"
     Update-TuiActivity (Get-UiText "Saving the update shortcut..." "Enregistrement du raccourci de mise a jour...") -Progress 0.92 -Force
     Write-UpdateLauncher $resolvedRoot $distributionDirectory
     Write-State $resolvedRoot $vencordDirectory $distributionDirectory $Branch

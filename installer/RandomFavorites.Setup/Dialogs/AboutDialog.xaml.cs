@@ -17,7 +17,7 @@ public partial class AboutDialog : Window
     {
         using var process = Process.Start(new ProcessStartInfo
         {
-            FileName = "https://github.com/Yuzuctus/RandomFavorites",
+            FileName = "https://github.com/Yuzuctus/YuzuCord",
             UseShellExecute = true,
         });
     }

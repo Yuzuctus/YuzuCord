@@ -193,7 +193,7 @@ public static class InstallerStateResolver
                 InstallerScreenStatus.NotInstalled,
                 InstallerStatusTone.Neutral,
                 InstallerStatusIcon.Star,
-                "Yuzuctus Vencord n'est pas installé",
+                "YuzuCord n'est pas installé",
                 "Prêt pour l'installation",
                 InstallerPrimaryAction.Install,
                 "Installer",
@@ -220,7 +220,7 @@ public static class InstallerStateResolver
                 InstallerScreenStatus.Warning,
                 InstallerStatusTone.Warning,
                 InstallerStatusIcon.Warning,
-                "Yuzuctus Vencord est installé",
+                "YuzuCord est installé",
                 input.InspectionWarning ?? "La version disponible n'a pas pu être vérifiée.",
                 openAsarPreferenceChanged
                     ? InstallerPrimaryAction.ApplyChanges
@@ -254,7 +254,7 @@ public static class InstallerStateResolver
                 InstallerScreenStatus.UpToDate,
                 InstallerStatusTone.Success,
                 InstallerStatusIcon.Check,
-                "Yuzuctus Vencord est à jour",
+                "YuzuCord est à jour",
                 $"Version {input.InstalledManifest.Version}",
                 InstallerPrimaryAction.ApplyChanges,
                 "Appliquer les changements",
@@ -265,7 +265,7 @@ public static class InstallerStateResolver
             InstallerScreenStatus.UpToDate,
             InstallerStatusTone.Success,
             InstallerStatusIcon.Check,
-            "Yuzuctus Vencord est à jour",
+            "YuzuCord est à jour",
             $"Version {input.InstalledManifest.Version}",
             context: "Aucune action nécessaire.",
             primaryActionText: "Tout est à jour");

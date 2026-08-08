@@ -9,7 +9,7 @@ namespace RandomFavorites.Setup.Core.Services;
 public sealed class InstallerService : IDisposable
 {
     public const string ProductId = "YuzuctusVencord";
-    public const string ProductName = "Yuzuctus Vencord";
+    public const string ProductName = "YuzuCord";
 
     private const int MaximumBundleEntries = 2048;
     private const long MaximumExtractedBundleBytes = 512L * 1024 * 1024;
@@ -241,7 +241,7 @@ public sealed class InstallerService : IDisposable
             };
             WriteState(migratedState);
             File.Move(legacyStateFile, legacyStateFile + ".migrated", overwrite: true);
-            WriteLog("Ancienne installation RandomFavorites migree vers Yuzuctus Vencord.");
+            WriteLog("Ancienne installation RandomFavorites migree vers YuzuCord.");
             return migratedState;
         }
         catch (Exception error)
@@ -279,7 +279,7 @@ public sealed class InstallerService : IDisposable
 
             progress?.Report(new InstallerProgress(
                 openAsarPath is null ? 0.52 : 0.62,
-                "Préparation de Yuzuctus Vencord",
+                "Préparation de YuzuCord",
                 "Extraction sécurisée de la version compilée…",
                 true));
             stagedDirectory = Path.Combine(_layout.Versions, $".staging-{Guid.NewGuid():N}");
@@ -407,15 +407,15 @@ public sealed class InstallerService : IDisposable
                 1,
                 "Installation terminée",
                 installOpenAsar
-                    ? $"Yuzuctus Vencord {manifest.Version} est prêt et OpenAsar est à jour."
-                    : $"Yuzuctus Vencord {manifest.Version} est prêt."));
-            WriteLog($"Yuzuctus Vencord {manifest.Version} installé avec succès.");
+                    ? $"YuzuCord {manifest.Version} est prêt et OpenAsar est à jour."
+                    : $"YuzuCord {manifest.Version} est prêt."));
+            WriteLog($"YuzuCord {manifest.Version} installé avec succès.");
             return new InstallResult(
                 true,
-                "Yuzuctus Vencord est installé",
+                "YuzuCord est installé",
                 installOpenAsar
-                    ? "OpenAsar utilise la dernière release officielle. Yuzuctus Vencord peut maintenant être utilisé dans Discord."
-                    : "Yuzuctus Vencord peut maintenant être utilisé dans Discord.",
+                    ? $"YuzuCord {manifest.Version} et OpenAsar sont prêts."
+                    : $"YuzuCord {manifest.Version} est prêt.",
                 manifest.Version);
         }
         catch (OperationCanceledException)
@@ -425,7 +425,7 @@ public sealed class InstallerService : IDisposable
         }
         catch (Exception error)
         {
-            WriteLog($"Échec : {error}");
+            WriteLog($"Échec : {error.Message}");
             return new InstallResult(false, "L'installation a échoué", error.Message);
         }
         finally
@@ -476,7 +476,7 @@ public sealed class InstallerService : IDisposable
                 progress?.Report(new InstallerProgress(
                     0.64,
                     "Conservation de Vencord",
-                    "Retrait de la distribution Yuzuctus Vencord…",
+                    "Retrait de la distribution YuzuCord…",
                     true));
                 await RunVencordCliAsync(
                     officialInstaller,
@@ -517,7 +517,7 @@ public sealed class InstallerService : IDisposable
                 var openAsarKept = openAsarWasInstalled && !openAsarRemoved;
                 progress?.Report(new InstallerProgress(
                     1,
-                    "Yuzuctus Vencord est désinstallé",
+                    "YuzuCord est désinstallé",
                     openAsarRemoved
                         ? "Vencord officiel est conservé et OpenAsar a été retiré."
                         : openAsarKept
@@ -525,7 +525,7 @@ public sealed class InstallerService : IDisposable
                             : "Vencord officiel est conservé."));
                 return new InstallResult(
                     true,
-                    "Yuzuctus Vencord est désinstallé",
+                    "YuzuCord est désinstallé",
                     openAsarRemoved
                         ? "Vencord officiel et les autres plugins/réglages sont conservés. OpenAsar a été retiré."
                         : openAsarKept
@@ -815,7 +815,7 @@ public sealed class InstallerService : IDisposable
             && !patch.Contains(escapedPatcher, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidDataException(
-                "Discord n'a pas été relié à la version Yuzuctus Vencord attendue.");
+                "Discord n'a pas été relié à la version YuzuCord attendue.");
         }
     }
 
@@ -836,7 +836,7 @@ public sealed class InstallerService : IDisposable
         }
 
         if (File.Exists(_layout.StateFile)) File.Delete(_layout.StateFile);
-        WriteLog("Fichiers compilés Yuzuctus Vencord supprimés.");
+        WriteLog("Fichiers compilés YuzuCord supprimés.");
     }
 
     private void PruneInactiveVersions(string activeDirectory)
