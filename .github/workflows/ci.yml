@@ -1,0 +1,86 @@
+name: YuzuCord compatibility and installer tests
+
+on:
+  push:
+    branches: [main, beta-v2]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vencord-compatibility:
+    name: Current Vencord compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out YuzuCord distribution
+        uses: actions/checkout@v5
+        with:
+          path: distribution
+
+      - name: Check out current Vencord
+        uses: actions/checkout@v5
+        with:
+          repository: Vendicated/Vencord
+          path: vencord
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Enable Vencord's pinned pnpm
+        working-directory: vencord
+        run: corepack enable && corepack install
+
+      - name: Validate the catalog against current Vencord
+        shell: pwsh
+        env:
+          CHROMIUM_BIN: /usr/bin/google-chrome
+        run: |
+          ./distribution/scripts/Invoke-YuzuCordValidation.ps1 `
+            -DistributionDirectory ./distribution `
+            -VencordDirectory ./vencord `
+            -Targets Catalog,Vencord `
+            -InstallVencordDependencies `
+            -IncludeReporter
+
+  windows-installer:
+    name: Windows installer
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out YuzuCord distribution
+        uses: actions/checkout@v5
+        with:
+          path: distribution
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Validate and publish the installer
+        shell: pwsh
+        run: |
+          ./distribution/scripts/Invoke-YuzuCordValidation.ps1 `
+            -DistributionDirectory ./distribution `
+            -Targets Installer `
+            -PublishInstaller `
+            -InstallerOutputDirectory ./distribution/artifacts/setup
+
+      - name: Upload test executable
+        uses: actions/upload-artifact@v5
+        with:
+          name: YuzuCordSetup-ci
+          path: distribution/artifacts/setup/YuzuCordSetup.exe
+          if-no-files-found: error
+          retention-days: 7

@@ -1,0 +1,144 @@
+name: Publish YuzuCord release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+-beta[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: yuzucord-release-assets
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and publish ${{ github.ref_name }}
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - name: Check out YuzuCord distribution
+        uses: actions/checkout@v5
+        with:
+          path: distribution
+
+      - name: Check out current official Vencord
+        uses: actions/checkout@v5
+        with:
+          repository: Vendicated/Vencord
+          path: vencord
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Enable Vencord's pinned pnpm
+        working-directory: vencord
+        shell: pwsh
+        run: |
+          corepack enable
+          corepack install
+
+      - name: Validate YuzuCord
+        shell: pwsh
+        run: |
+          ./distribution/scripts/Invoke-YuzuCordValidation.ps1 `
+            -DistributionDirectory ./distribution `
+            -VencordDirectory ./vencord `
+            -Targets All `
+            -InstallVencordDependencies `
+            -IncludeReporter `
+            -PublishInstaller `
+            -InstallerOutputDirectory ./release-assets/setup `
+            -InstallerReleaseTag $env:GITHUB_REF_NAME
+
+      - name: Build verified release bundle
+        shell: pwsh
+        run: |
+          & distribution/scripts/Build-ReleaseBundle.ps1 `
+            -DistributionDirectory distribution `
+            -VencordDirectory vencord `
+            -OutputDirectory release-assets `
+            -Version $env:GITHUB_REF_NAME
+
+      - name: Prepare installer release asset
+        shell: pwsh
+        run: |
+          Copy-Item -LiteralPath release-assets/setup/YuzuCordSetup.exe `
+            -Destination release-assets/YuzuCordSetup.exe
+          $setupPath = Join-Path $PWD "release-assets/YuzuCordSetup.exe"
+          $setupHash = (Get-FileHash -LiteralPath $setupPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$setupHash  YuzuCordSetup.exe" |
+            Set-Content -LiteralPath "$setupPath.sha256" -Encoding ascii -NoNewline
+
+      - name: Publish GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $releaseArguments = @(
+            "release", "create", $env:GITHUB_REF_NAME,
+            "release-assets/YuzuCordSetup.exe",
+            "release-assets/YuzuCordSetup.exe.sha256",
+            "release-assets/YuzuCordBundle.zip",
+            "release-assets/YuzuCordBundle.zip.sha256",
+            "release-assets/YuzuCordBundle.manifest.json",
+            "--repo", $env:GITHUB_REPOSITORY,
+            "--title", "YuzuCord $env:GITHUB_REF_NAME",
+            "--generate-notes",
+            "--verify-tag"
+          )
+
+          if ($env:GITHUB_REF_NAME -match "-beta") {
+            $releaseArguments += "--prerelease"
+          } else {
+            $releaseArguments += "--latest"
+          }
+
+          $releaseAssets = @(
+            "release-assets/YuzuCordSetup.exe",
+            "release-assets/YuzuCordSetup.exe.sha256",
+            "release-assets/YuzuCordBundle.zip",
+            "release-assets/YuzuCordBundle.zip.sha256",
+            "release-assets/YuzuCordBundle.manifest.json"
+          )
+          $published = $false
+
+          for ($attempt = 1; $attempt -le 5; $attempt++) {
+            Write-Host "GitHub release publication attempt $attempt/5"
+            & gh @releaseArguments
+            if ($LASTEXITCODE -eq 0) {
+              $published = $true
+              break
+            }
+
+            gh release view $env:GITHUB_REF_NAME `
+              --repo $env:GITHUB_REPOSITORY `
+              --json url *> $null
+            if ($LASTEXITCODE -eq 0) {
+              & gh release upload $env:GITHUB_REF_NAME @releaseAssets `
+                --repo $env:GITHUB_REPOSITORY `
+                --clobber
+              if ($LASTEXITCODE -eq 0) {
+                $published = $true
+                break
+              }
+            }
+
+            if ($attempt -lt 5) {
+              Start-Sleep -Seconds 15
+            }
+          }
+
+          if (-not $published) {
+            throw "GitHub release publication failed after 5 attempts."
+          }

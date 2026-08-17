@@ -1,0 +1,280 @@
+/*
+ * Vencord, a Discord client mod
+ * Copyright (c) 2026 Vendicated and contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+.vc-rf-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+}
+
+ul:has(.vc-rf-picker-action) {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+}
+
+ul:has(.vc-rf-picker-action) > li {
+    width: auto !important;
+    min-width: 0;
+    opacity: 1 !important;
+}
+
+.vc-rf-picker-action {
+    width: 100% !important;
+    height: 40px !important;
+    min-width: 0;
+    padding: 0 10px !important;
+    color: var(--control-secondary-text-default, var(--text-default)) !important;
+    background: var(--control-secondary-background-default, var(--background-secondary)) !important;
+    border: 1px solid var(--control-secondary-border-default, var(--border-subtle)) !important;
+    border-radius: 8px !important;
+    opacity: 1 !important;
+    transition: 120ms ease;
+    transition-property: color, background-color, border-color;
+}
+
+.vc-rf-picker-action:hover {
+    color: var(--control-secondary-text-hover, var(--text-strong)) !important;
+    background: var(--control-secondary-background-hover, var(--background-mod-normal)) !important;
+    border-color: var(--control-secondary-border-hover, var(--border-subtle)) !important;
+}
+
+.vc-rf-picker-action:active {
+    color: var(--control-secondary-text-active, var(--text-strong)) !important;
+    background: var(--control-secondary-background-active, var(--background-mod-strong)) !important;
+    border-color: var(--control-secondary-border-active, var(--border-subtle)) !important;
+}
+
+.vc-rf-picker-action-content {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 8px;
+}
+
+.vc-rf-picker-action-icon {
+    flex: 0 0 auto;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.vc-rf-picker-action-label {
+    overflow: hidden;
+    color: currentcolor !important;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 18px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vc-rf-preview-grid-single {
+    grid-template-columns: minmax(240px, 420px);
+    justify-content: center;
+}
+
+.vc-rf-preview-card {
+    min-width: 0;
+    overflow: hidden;
+    background: var(--background-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+}
+
+.vc-rf-preview-media {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 190px;
+    max-height: 320px;
+    padding: 12px;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 50% 30%, rgb(88 101 242 / 18%), transparent 58%),
+        var(--background-tertiary);
+}
+
+.vc-rf-preview-image {
+    display: block;
+    max-width: 100%;
+    max-height: 296px;
+    object-fit: contain;
+    border-radius: 8px;
+}
+
+.vc-rf-preview-lottie {
+    width: min(100%, 260px);
+    height: 260px;
+}
+
+.vc-rf-preview-emoji,
+.vc-rf-preview-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 112px;
+    min-height: 112px;
+    color: var(--brand-500);
+    font-size: 80px;
+    line-height: 1;
+}
+
+.vc-rf-preview-fallback {
+    flex-direction: column;
+    gap: 10px;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.vc-rf-preview-emoji img {
+    width: 96px;
+    height: 96px;
+    object-fit: contain;
+}
+
+.vc-rf-preview-audio {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.vc-rf-preview-audio-icon {
+    display: grid;
+    width: 72px;
+    height: 72px;
+    color: var(--brand-500);
+    font-size: 36px;
+    background: var(--background-secondary);
+    border-radius: 18px;
+    place-items: center;
+}
+
+.vc-rf-preview-audio-controls {
+    width: 100%;
+    min-width: 0;
+}
+
+.vc-rf-preview-audio-error {
+    color: var(--text-danger);
+    font-size: 12px;
+    text-align: center;
+}
+
+.vc-rf-preview-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 12px 14px 14px;
+    color: var(--text-normal);
+}
+
+.vc-rf-preview-meta span {
+    overflow: hidden;
+    color: var(--text-muted);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vc-rf-preview-hint {
+    margin: 14px 2px 0;
+    color: var(--text-muted);
+    font-size: 12px;
+    text-align: center;
+}
+
+.vc-rf-reaction-preview {
+    display: flex;
+    min-height: 180px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: var(--text-normal);
+}
+
+.vc-rf-reaction-preview-emoji {
+    display: grid;
+    width: 112px;
+    height: 112px;
+    margin-bottom: 8px;
+    font-size: 80px;
+    line-height: 1;
+    place-items: center;
+}
+
+.vc-rf-reaction-preview-emoji img {
+    width: 96px;
+    height: 96px;
+    object-fit: contain;
+}
+
+.vc-rf-reaction-preview > span {
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.vc-rf-soundboard-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 18px;
+    background: var(--background-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+}
+
+.vc-rf-soundboard-preview-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+
+.vc-rf-soundboard-preview-heading > div {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.vc-rf-soundboard-preview-heading strong,
+.vc-rf-soundboard-preview-heading span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vc-rf-soundboard-preview-heading > div > span {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.vc-rf-soundboard-preview-emoji {
+    display: grid;
+    flex: 0 0 48px;
+    height: 48px;
+    color: var(--text-normal);
+    font-size: 26px;
+    background: var(--background-tertiary);
+    border-radius: 12px;
+    place-items: center;
+}
+
+.vc-rf-soundboard-audio {
+    width: 100%;
+    height: 40px;
+    color-scheme: dark;
+}
+
+.vc-rf-soundboard-preview-error {
+    margin: 0;
+    color: var(--text-danger);
+    font-size: 12px;
+    line-height: 18px;
+}

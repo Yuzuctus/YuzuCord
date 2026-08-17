@@ -1,0 +1,74 @@
+{
+  "$schema": "./plugins.schema.json",
+  "schemaVersion": 2,
+  "plugins": [
+    {
+      "id": "randomFavorites",
+      "displayName": "RandomFavorites",
+      "source": {
+        "type": "local",
+        "path": ".",
+        "repository": "https://github.com/Yuzuctus/YuzuCord.git"
+      },
+      "mappings": [
+        {
+          "from": "plugins/randomFavorites",
+          "to": "."
+        },
+        {
+          "from": "shared/soundboard/src",
+          "to": "_shared/soundboard/src"
+        },
+        {
+          "from": "shared/soundboard/tests",
+          "to": "_shared/soundboard/tests"
+        },
+        {
+          "from": "LICENSE",
+          "to": "LICENSE"
+        }
+      ],
+      "entrypoint": "index.tsx",
+      "settingsKey": "RandomFavorites",
+      "provenance": "yuzuctus",
+      "dependencies": [],
+      "conflicts": [],
+      "license": "GPL-3.0-or-later",
+      "licenseFile": "LICENSE",
+      "maintainer": "Yuzuctus",
+      "status": "maintained"
+    },
+    {
+      "id": "soundboardChat",
+      "displayName": "SoundboardChat",
+      "source": {
+        "type": "local",
+        "path": ".",
+        "repository": "https://github.com/Yuzuctus/YuzuCord.git"
+      },
+      "mappings": [
+        {
+          "from": "plugins/soundboardChat",
+          "to": "."
+        },
+        {
+          "from": "shared/soundboard/src",
+          "to": "_shared/soundboard/src"
+        },
+        {
+          "from": "LICENSE",
+          "to": "LICENSE"
+        }
+      ],
+      "entrypoint": "index.tsx",
+      "settingsKey": "SoundboardChat",
+      "provenance": "yuzuctus",
+      "dependencies": [],
+      "conflicts": [],
+      "license": "GPL-3.0-or-later",
+      "licenseFile": "LICENSE",
+      "maintainer": "Yuzuctus",
+      "status": "experimental"
+    }
+  ]
+}

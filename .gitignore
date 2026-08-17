@@ -1,0 +1,13 @@
+.DS_Store
+.idea/
+.vscode/
+node_modules/
+*.log
+**/bin/
+**/obj/
+artifacts/
+release-assets/
+AGENTS.md
+CLAUDE.md
+.installer-smoke/
+/docs/plans/

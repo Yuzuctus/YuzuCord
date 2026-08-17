@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <DebugType>embedded</DebugType>
+    <AssemblyName>YuzuCordSetup</AssemblyName>
+    <RootNamespace>YuzuCord.Setup</RootNamespace>
+    <ApplicationIcon>Assets\YuzuCord.ico</ApplicationIcon>
+    <YuzuCordReleaseTag Condition="'$(YuzuCordReleaseTag)' == ''">latest</YuzuCordReleaseTag>
+  </PropertyGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="YuzuCordReleaseTag" Value="$(YuzuCordReleaseTag)" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\YuzuCord.Setup.Core\YuzuCord.Setup.Core.csproj" />
+    <ProjectReference Include="..\YuzuCord.Setup.Presentation\YuzuCord.Setup.Presentation.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\YuzuCord.ico" />
+    <Resource Include="Assets\Artwork\YuzuChibiHello.png" />
+  </ItemGroup>
+</Project>
