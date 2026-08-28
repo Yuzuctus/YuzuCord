@@ -9,6 +9,7 @@ import { EmojiStore, ExpressionPickerStore } from "@webpack/common";
 
 import { isFrench, localize } from "./localization";
 import { insertAfterFavoritesOrFirst } from "./pickerCategoryOrder";
+import { createShallowArrayMemo, type ShallowArrayMemo } from "./shallowArrayMemo";
 
 export type RandomSoundboardAction = "direct" | "preview";
 export type RandomReactionAction = "direct" | "preview";
@@ -86,6 +87,23 @@ let randomEmojiGridCategoriesCache = new WeakMap<
 let randomEmojiRailCategoriesCache = new WeakMap<
     readonly object[],
     Map<number, readonly object[]>
+>();
+const randomStickerCategoryObjects = new Map<string, RandomStickerCategory>();
+let randomStickerRailCategoriesCaches = new Map<
+    string,
+    ShallowArrayMemo<readonly object[]>
+>();
+let randomStickerGridCaches = new Map<
+    string,
+    ShallowArrayMemo<readonly (readonly RandomStickerGridItem[])[]>
+>();
+let randomStickerGridRowCaches = new Map<
+    string,
+    WeakMap<readonly RandomStickerGridItem[], readonly RandomStickerGridItem[]>
+>();
+let randomStickerGridItemCaches = new Map<
+    string,
+    WeakMap<object, RandomStickerGridItem>
 >();
 
 export function getActiveExpressionPickerView() {
@@ -325,35 +343,52 @@ export function addRandomStickerCategory<T extends {
     id?: string;
     type?: string;
 }>(categories: readonly T[]): readonly T[] {
+    if (!Array.isArray(categories)) return categories;
     if (categories.some(category => category.id === RANDOM_STICKER_CATEGORY_ID))
         return categories;
 
-    const randomCategory: RandomStickerCategory = {
-        id: RANDOM_STICKER_CATEGORY_ID,
-        name: "FavoriteRandom",
-        randomFavoritesCategory: true,
-        stickers: [{
-            description: localize(
-                "Send a random favorite sticker",
-                "Envoyer un sticker favori aléatoire",
-            ),
-            format_type: 1,
-            id: RANDOM_STICKER_ITEM_ID,
-            name: localize("Random sticker", "Sticker aléatoire"),
-            pack_id: RANDOM_STICKER_CATEGORY_ID,
-            randomFavoritesKind: "sticker",
-            type: 1,
-        }],
-        type: "FAVORITE",
-    };
+    const localeKey = isFrench() ? "fr" : "en";
+    let categoryCache = randomStickerRailCategoriesCaches.get(localeKey);
+    if (!categoryCache) {
+        categoryCache = createShallowArrayMemo(8);
+        randomStickerRailCategoriesCaches.set(localeKey, categoryCache);
+    }
+
+    const cached = categoryCache.get(categories) as readonly T[] | undefined;
+    if (cached) return cached;
+
+    let randomCategory = randomStickerCategoryObjects.get(localeKey);
+    if (!randomCategory) {
+        randomCategory = {
+            id: RANDOM_STICKER_CATEGORY_ID,
+            name: "FavoriteRandom",
+            randomFavoritesCategory: true,
+            stickers: [{
+                description: localize(
+                    "Send a random favorite sticker",
+                    "Envoyer un sticker favori aléatoire",
+                ),
+                format_type: 1,
+                id: RANDOM_STICKER_ITEM_ID,
+                name: localize("Random sticker", "Sticker aléatoire"),
+                pack_id: RANDOM_STICKER_CATEGORY_ID,
+                randomFavoritesKind: "sticker",
+                type: 1,
+            }],
+            type: "FAVORITE",
+        };
+        randomStickerCategoryObjects.set(localeKey, randomCategory);
+    }
     const favoritesIndex = categories.findIndex(category => category.type === "FAVORITE");
     const insertionIndex = favoritesIndex >= 0 ? favoritesIndex + 1 : 0;
 
-    return [
+    const result = [
         ...categories.slice(0, insertionIndex),
         randomCategory as unknown as T,
         ...categories.slice(insertionIndex),
     ];
+    categoryCache.set(categories, result as readonly object[]);
+    return result;
 }
 
 export function isRandomStickerCategory(category?: { id?: string; }) {
@@ -361,22 +396,73 @@ export function isRandomStickerCategory(category?: { id?: string; }) {
 }
 
 export function transformRandomStickerGrid<T extends RandomStickerGridResult>(result: T): T {
-    let changed = false;
-    const stickersGrid = result.stickersGrid.map(row => row.map(item => {
-        if (item.sticker?.randomFavoritesKind !== "sticker") return item;
+    if (!result || !Array.isArray(result.stickersGrid)) return result;
 
-        changed = true;
-        return {
-            ...item,
-            guild_id: RANDOM_STICKER_CATEGORY_ID,
-            name: localize("Random sticker", "Sticker aléatoire"),
-            randomFavoritesKind: "sticker" as const,
-            type: 1,
-        };
-    }));
+    const localeKey = isFrench() ? "fr" : "en";
+    let gridCache = randomStickerGridCaches.get(localeKey);
+    if (!gridCache) {
+        gridCache = createShallowArrayMemo(8);
+        randomStickerGridCaches.set(localeKey, gridCache);
+    }
+
+    const cachedGrid = gridCache.get(result.stickersGrid);
+    if (cachedGrid) {
+        return cachedGrid === result.stickersGrid
+            ? result
+            : { ...result, stickersGrid: cachedGrid } as T;
+    }
+
+    let rowCache = randomStickerGridRowCaches.get(localeKey);
+    if (!rowCache) {
+        rowCache = new WeakMap();
+        randomStickerGridRowCaches.set(localeKey, rowCache);
+    }
+
+    let itemCache = randomStickerGridItemCaches.get(localeKey);
+    if (!itemCache) {
+        itemCache = new WeakMap();
+        randomStickerGridItemCaches.set(localeKey, itemCache);
+    }
+
+    let changed = false;
+    const stickersGrid = result.stickersGrid.map(row => {
+        if (!Array.isArray(row)) return row;
+
+        const cachedRow = rowCache.get(row);
+        if (cachedRow) {
+            if (cachedRow !== row) changed = true;
+            return cachedRow;
+        }
+
+        let rowChanged = false;
+        const transformedRow = row.map(item => {
+            if (item?.sticker?.randomFavoritesKind !== "sticker") return item;
+
+            rowChanged = true;
+            const cachedItem = itemCache.get(item);
+            if (cachedItem) return cachedItem;
+
+            const transformedItem = {
+                ...item,
+                guild_id: RANDOM_STICKER_CATEGORY_ID,
+                name: localize("Random sticker", "Sticker aléatoire"),
+                randomFavoritesKind: "sticker" as const,
+                type: 1,
+            };
+            itemCache.set(item, transformedItem);
+            return transformedItem;
+        });
+        const stableRow = rowChanged ? transformedRow : row;
+        rowCache.set(row, stableRow);
+        if (rowChanged) changed = true;
+        return stableRow;
+    });
+
+    const stableGrid = changed ? stickersGrid : result.stickersGrid;
+    gridCache.set(result.stickersGrid, stableGrid);
 
     return changed
-        ? { ...result, stickersGrid } as T
+        ? { ...result, stickersGrid: stableGrid } as T
         : result;
 }
 
@@ -395,4 +481,9 @@ export function resetExpressionPickerCaches() {
     randomEmojiCategoryObjects.clear();
     randomEmojiGridCategoriesCache = new WeakMap();
     randomEmojiRailCategoriesCache = new WeakMap();
+    randomStickerCategoryObjects.clear();
+    randomStickerRailCategoriesCaches = new Map();
+    randomStickerGridCaches = new Map();
+    randomStickerGridRowCaches = new Map();
+    randomStickerGridItemCaches = new Map();
 }
